@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
-    QLabel, QGroupBox, QTabWidget
+    QLabel, QGroupBox, QTabWidget, QScrollArea, QFrame
 )
 from PySide6.QtCore import Qt, QThread, QTimer, QDateTime
 from PySide6.QtGui import QIcon
@@ -43,7 +43,7 @@ class MainWindow(QMainWindow):
         self.lbl_title.setObjectName("header_label")
         
         # Banner Nama TIM & Perguruan Tinggi
-        self.lbl_team = QLabel("🏆 NAMA TIM: TIM 2 ROV | PERGURUAN TINGGI: POLITEKNIK / UNIVERSITAS")
+        self.lbl_team = QLabel("ROBOTIKA TIM 2 ROV | UNIVERSITAS MUHAMMADIYAH MALANG")
         self.lbl_team.setObjectName("header_team")
         self.lbl_team.setToolTip("Bosku bisa mengedit/menyesuaikan nama tim & kampus ini.")
         
@@ -51,17 +51,22 @@ class MainWindow(QMainWindow):
         self.lbl_clock = QLabel("🕒 WAKTU: Menghubungkan jam...")
         self.lbl_clock.setStyleSheet("font-size: 13px; font-weight: bold; color: #00e5ff; background-color: #171f2e; padding: 6px 14px; border: 1px solid #28354d; border-radius: 5px;")
 
-        header_layout.addWidget(self.lbl_title)
+        header_layout.addWidget(self.lbl_title, alignment=Qt.AlignVCenter)
         header_layout.addSpacing(15)
-        header_layout.addWidget(self.lbl_team)
+        header_layout.addWidget(self.lbl_team, alignment=Qt.AlignVCenter)
         header_layout.addStretch()
-        header_layout.addWidget(self.lbl_clock)
-        main_layout.addLayout(header_layout)
+        header_layout.addWidget(self.lbl_clock, alignment=Qt.AlignVCenter)
+        main_layout.addLayout(header_layout, 0)
 
         # === MAIN SPLITTER (LEFT / CENTER / RIGHT) ===
         main_splitter = QSplitter(Qt.Horizontal)
 
         # 1. LEFT COLUMN: Kontrol & Telemetri (Termasuk Altimeter Dasar Kolam)
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QFrame.NoFrame)
+        left_scroll.setStyleSheet("background-color: transparent;")
+        
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
@@ -72,10 +77,11 @@ class MainWindow(QMainWindow):
         
         left_layout.addWidget(self.control_panel)
         left_layout.addWidget(self.telemetry_panel)
-        left_layout.addStretch()
-        left_widget.setMinimumWidth(340)
-        left_widget.setMaximumWidth(420)
-        main_splitter.addWidget(left_widget)
+        
+        left_scroll.setWidget(left_widget)
+        left_scroll.setMinimumWidth(340)
+        left_scroll.setMaximumWidth(420)
+        main_splitter.addWidget(left_scroll)
 
         # 2. CENTER COLUMN: Multi-Tab Dashboard (Dual Camera, Trajectory Map, 3D Design)
         center_widget = QWidget()
@@ -140,7 +146,7 @@ class MainWindow(QMainWindow):
 
         # Proporsi awal splitter kanan-kiri
         main_splitter.setSizes([360, 640, 350])
-        main_layout.addWidget(main_splitter)
+        main_layout.addWidget(main_splitter, 1)
 
     def _init_worker(self):
         self.worker = ROVWorker()

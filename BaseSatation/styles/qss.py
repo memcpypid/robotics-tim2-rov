@@ -21,22 +21,22 @@ QGroupBox {
     background-color: #171f2e;
     border: 1px solid #28354d;
     border-radius: 8px;
-    margin-top: 24px;
-    padding-top: 14px;
+    margin-top: 16px;
+    padding-top: 8px;
     font-weight: bold;
-    font-size: 14px;
+    font-size: 13px;
     color: #00e5ff;
 }
 
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    padding: 2px 10px;
+    padding: 2px 8px;
     background-color: #1f2c40;
     border: 1px solid #00e5ff;
     border-radius: 4px;
     color: #00e5ff;
-    left: 12px;
+    left: 10px;
 }
 
 /* Buttons */

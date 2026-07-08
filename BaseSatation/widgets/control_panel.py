@@ -21,13 +21,14 @@ class ControlPanel(QWidget):
 
     def _init_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(6, 6, 6, 6)
+        main_layout.setSpacing(12)
 
         # 1. Groupbox Koneksi LAN/WiFi Jetson Nano
         conn_group = QGroupBox("JETSON NANO LAN / WIFI CONNECTION")
         conn_layout = QVBoxLayout(conn_group)
-        conn_layout.setSpacing(8)
+        conn_layout.setContentsMargins(12, 18, 12, 12)
+        conn_layout.setSpacing(10)
 
         row1 = QHBoxLayout()
         row1.addWidget(QLabel("IP Jetson Nano:"))
@@ -56,6 +57,7 @@ class ControlPanel(QWidget):
         # 2. Groupbox Arming & Safety
         arm_group = QGroupBox("THRUSTER ARMING")
         arm_layout = QVBoxLayout(arm_group)
+        arm_layout.setContentsMargins(12, 18, 12, 12)
 
         self.btn_arm = QPushButton("DISARMED (CLICK TO ARM)")
         self.btn_arm.setObjectName("btn_arm")
@@ -69,7 +71,8 @@ class ControlPanel(QWidget):
         # 3. Groupbox Flight Modes
         mode_group = QGroupBox("FLIGHT MODES")
         mode_layout = QGridLayout(mode_group)
-        mode_layout.setSpacing(6)
+        mode_layout.setContentsMargins(12, 18, 12, 12)
+        mode_layout.setSpacing(8)
 
         self.btn_mode_manual = QPushButton("MANUAL")
         self.btn_mode_manual.clicked.connect(lambda: self.sig_mode_requested.emit("MANUAL"))
@@ -93,7 +96,8 @@ class ControlPanel(QWidget):
         # 4. Groupbox USB Joystick / Gamepad Control
         joy_group = QGroupBox("USB JOYSTICK / GAMEPAD MANUAL CONTROL")
         joy_layout = QVBoxLayout(joy_group)
-        joy_layout.setSpacing(6)
+        joy_layout.setContentsMargins(12, 18, 12, 12)
+        joy_layout.setSpacing(8)
 
         self.lbl_joystick_status = QLabel("🎮 Status: Tidak Ada Joystick USB Tercolok")
         self.lbl_joystick_status.setStyleSheet("font-size: 11px; color: #899cb8; font-weight: bold;")
@@ -111,7 +115,6 @@ class ControlPanel(QWidget):
         joy_layout.addWidget(self.lbl_joystick_axes)
 
         main_layout.addWidget(joy_group)
-        main_layout.addStretch()
 
     def set_joystick_status(self, connected: bool, device_name: str):
         if connected:

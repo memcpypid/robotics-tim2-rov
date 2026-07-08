@@ -15,12 +15,14 @@ class TelemetryPanel(QWidget):
 
     def _init_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(6, 6, 6, 6)
+        main_layout.setSpacing(12)
 
         # 1. Groupbox Status Utama (Mode & Armed status)
         status_group = QGroupBox("FLIGHT & ARM STATUS")
         status_layout = QHBoxLayout(status_group)
+        status_layout.setContentsMargins(12, 18, 12, 12)
+        status_layout.setSpacing(10)
 
         self.lbl_mode = QLabel("MANUAL")
         self.lbl_mode.setAlignment(Qt.AlignCenter)
@@ -37,7 +39,8 @@ class TelemetryPanel(QWidget):
         # 2. Groupbox Kedalaman & Ketinggian Dasar Kolam (Bottom Clearance)
         depth_group = QGroupBox("DEPTH & BOTTOM CLEARANCE (ALTIMETER)")
         depth_layout = QVBoxLayout(depth_group)
-        depth_layout.setSpacing(6)
+        depth_layout.setContentsMargins(12, 18, 12, 12)
+        depth_layout.setSpacing(10)
 
         # Kedalaman dari Permukaan
         row_depth = QHBoxLayout()
@@ -73,6 +76,8 @@ class TelemetryPanel(QWidget):
         # 3. Groupbox Baterai & Daya
         power_group = QGroupBox("POWER & BATTERY STATUS")
         power_layout = QVBoxLayout(power_group)
+        power_layout.setContentsMargins(12, 18, 12, 12)
+        power_layout.setSpacing(10)
 
         bat_layout = QHBoxLayout()
         bat_layout.addWidget(QLabel("Tegangan Baterai:"))
@@ -93,6 +98,8 @@ class TelemetryPanel(QWidget):
         # 4. Groupbox RPY Detail (Roll Pitch Yaw)
         rpy_group = QGroupBox("ATTITUDE VECTOR (6-DOF)")
         rpy_layout = QGridLayout(rpy_group)
+        rpy_layout.setContentsMargins(12, 18, 12, 12)
+        rpy_layout.setSpacing(10)
 
         rpy_layout.addWidget(QLabel("Roll:"), 0, 0)
         self.lbl_roll = QLabel("0.0°")
@@ -110,7 +117,6 @@ class TelemetryPanel(QWidget):
         rpy_layout.addWidget(self.lbl_yaw, 2, 1)
 
         main_layout.addWidget(rpy_group)
-        main_layout.addStretch()
 
     def update_telemetry(self, state):
         """Memperbarui UI panel dengan data dari object ROVState."""
