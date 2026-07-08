@@ -1,0 +1,67 @@
+# ==========================================
+# Python & Bytecode
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyc
+
+# ==========================================
+# Virtual Environments & Packaging
+# ==========================================
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# ==========================================
+# IDE & Editor Files
+# ==========================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# ==========================================
+# OS & System Junk
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ==========================================
+# ROV & Base Station Data, Logs & Media
+# ==========================================
+logs/
+*.log
+telemetry_logs/
+data_logs/
+screenshots/
+recordings/
+*.mp4
+*.avi
+*.mkv
+*.db
+*.sqlite
+*.sqlite3
+
+# ==========================================
+# AI & Local Tool Artifacts
+# ==========================================
+.gemini/
+.antigravity/

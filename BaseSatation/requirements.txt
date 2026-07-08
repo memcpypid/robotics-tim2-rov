@@ -1,0 +1,5 @@
+PySide6>=6.5.0
+pymavlink>=2.4.39
+pyserial>=3.5
+lxml>=4.8.0
+fastcrc>=0.3.0
