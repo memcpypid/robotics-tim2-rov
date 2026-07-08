@@ -24,6 +24,7 @@ class ROVWorker(QObject):
     sig_log = Signal(str, str)          # (message, level)
     sig_connected = Signal(bool)        # True jika sukses connect, False jika terputus
     sig_state_updated = Signal(object)  # ROVState object
+    sig_target_ip_changed = Signal(str) # Target IP Jetson Nano (LAN/WiFi)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -46,6 +47,8 @@ class ROVWorker(QObject):
             else:
                 raw_ip = connection_str.split(" ")[0].strip()
                 
+            self.sig_target_ip_changed.emit(raw_ip)
+
             if not self.lan_client:
                 self.lan_client = LANClientWorker(self)
                 self.lan_client.sig_log.connect(self.sig_log)

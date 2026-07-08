@@ -56,6 +56,32 @@ def main():
     streamer_cam2 = UDPVideoStreamer(target_ip=bs_ip, port=args.cam2_port, jpeg_quality=72)
     streamer_qr = UDPVideoStreamer(target_ip=bs_ip, port=args.qr_img_port, jpeg_quality=80)
     
+    def start_auto_discovery():
+        import socket, threading
+        def _loop():
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                sock.bind(("0.0.0.0", 9005))
+                print("[AutoDiscovery] Mendengarkan paket PING_STREAM dari Base Station di port 9005...")
+                current_ip = qr_sender.base_station_ip
+                while True:
+                    data, addr = sock.recvfrom(1024)
+                    client_ip = addr[0]
+                    if client_ip != current_ip:
+                        current_ip = client_ip
+                        print(f"\n[AutoDiscovery] Target Base Station terdeteksi di {client_ip}! Mengubah tujuan stream & telemetri...")
+                        qr_sender.update_target(client_ip, qr_sender.port)
+                        streamer_cam1.update_target(client_ip, streamer_cam1.port)
+                        streamer_cam2.update_target(client_ip, streamer_cam2.port)
+                        streamer_qr.update_target(client_ip, streamer_qr.port)
+            except Exception as e:
+                print(f"[AutoDiscovery ERROR] {e}")
+        t = threading.Thread(target=_loop, name="StreamAutoDiscovery", daemon=True)
+        t.start()
+    
+    start_auto_discovery()
+    
     mjpeg_server = MJPEGServer(port=args.mjpeg_port)
     mjpeg_server.start()
 

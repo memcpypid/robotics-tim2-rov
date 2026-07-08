@@ -22,9 +22,13 @@ class UDPFrameReceiver(QObject):
         self._running = False
         self._thread: Optional[threading.Thread] = None
         
-        # Buffer untuk menyusun chunk berdasarkan packet_id
         self._buffer: Dict[int, Dict[int, bytes]] = {}
         self._expected_chunks: Dict[int, int] = {}
+        self.target_ip: str = "AUTO"
+
+    def set_target_ip(self, ip: str):
+        self.target_ip = ip
+        self.sig_log.emit(f"[{self.cam_name} Receiver] Target IP Jetson diset ke: {ip}", "INFO")
 
     def start_receiver(self):
         if self._running:
@@ -55,9 +59,17 @@ class UDPFrameReceiver(QObject):
     def _listen_loop(self):
         while self._running and self.sock:
             try:
-                packet, _ = self.sock.recvfrom(65535)
+                packet, addr = self.sock.recvfrom(65535)
                 if len(packet) < 6:
                     continue
+                
+                # Filter stream agar hanya menerima paket dari IP Jetson yang ditargetkan
+                if self.target_ip and self.target_ip not in ["0.0.0.0", "AUTO"]:
+                    sender_ip = addr[0]
+                    if self.target_ip == "127.0.0.1" and sender_ip not in ["127.0.0.1", "localhost"]:
+                        continue
+                    elif self.target_ip != "127.0.0.1" and sender_ip != self.target_ip:
+                        continue
                 
                 # Unpack header: !I B B -> 6 bytes
                 packet_id, total_chunks, chunk_idx = struct.unpack("!IBB", packet[:6])
@@ -117,6 +129,11 @@ class DualVideoReceiverManager(QObject):
         self.receiver_cam1.sig_log.connect(self.sig_log)
         self.receiver_cam2.sig_log.connect(self.sig_log)
         self.receiver_qr.sig_log.connect(self.sig_log)
+
+    def set_target_ip(self, ip: str):
+        self.receiver_cam1.set_target_ip(ip)
+        self.receiver_cam2.set_target_ip(ip)
+        self.receiver_qr.set_target_ip(ip)
 
     def start_all(self):
         self.receiver_cam1.start_receiver()

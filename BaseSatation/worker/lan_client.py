@@ -70,10 +70,19 @@ class LANClientWorker(QObject):
             if not self._running or not self._telemetry_sock:
                 self.start_receiver(telemetry_port)
 
-            # Kirim paket PING awal untuk registrasi IP kita di ROVLANServer
+            # Kirim paket PING awal untuk registrasi IP kita di ROVLANServer (port 9001)
             self.send_command({"cmd": "PING"})
+            
+            # Kirim juga paket PING ke ImageProcessing (port 9005) agar stream kamera CAM 1, CAM 2, & QR langsung mengarah ke IP kita
+            try:
+                if self._cmd_sock:
+                    ping_stream = json.dumps({"cmd": "PING_STREAM"}).encode("utf-8")
+                    self._cmd_sock.sendto(ping_stream, (self.rov_ip, 9005))
+            except Exception:
+                pass
+
             self.sig_connected.emit(True)
-            self.sig_log.emit(f"[LAN Client] Berhasil tersambung ke LAN Bridge di {self.rov_ip}!", "SUCCESS")
+            self.sig_log.emit(f"[LAN Client] Berhasil tersambung ke LAN Bridge & Camera Stream di {self.rov_ip}!", "SUCCESS")
 
         except Exception as e:
             self.sig_log.emit(f"[LAN Client ERROR] Gagal menghubungkan LAN: {e}", "ERROR")
