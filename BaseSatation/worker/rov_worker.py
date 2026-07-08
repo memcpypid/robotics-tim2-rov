@@ -34,10 +34,14 @@ class ROVWorker(QObject):
         self._timer.timeout.connect(self._poll_telemetry)
 
     def connect_rov(self, connection_str: str, baudrate: int):
-        # 1. Jika memilih mode LAN Bridge (contoh: lan:127.0.0.1 atau lan:192.168.2.2)
-        if connection_str.lower().startswith("lan:"):
-            # Ambil IP address setelah prefix lan:
-            raw_ip = connection_str.split(":", 1)[1].split(" ")[0].strip()
+        # 1. Mode LAN / WiFi (IP Address langsung, contoh: 192.168.2.2 atau lan:192.168.2.2)
+        # Jika bukan prefix udp: / dev/, maka dianggap sebagai alamat IP Jetson Nano (LAN/WiFi UDP)
+        if connection_str.lower().startswith("lan:") or not (connection_str.lower().startswith("udp:") or connection_str.startswith("/dev/")):
+            if connection_str.lower().startswith("lan:"):
+                raw_ip = connection_str.split(":", 1)[1].split(" ")[0].strip()
+            else:
+                raw_ip = connection_str.split(" ")[0].strip()
+                
             if not self.lan_client:
                 self.lan_client = LANClientWorker(self)
                 self.lan_client.sig_log.connect(self.sig_log)

@@ -1,15 +1,15 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit, QSpinBox
+    QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit
 )
 from PySide6.QtCore import Qt, Signal
 
 
 class ControlPanel(QWidget):
     """
-    Panel Kontrol Operasional ROV (Koneksi, Arming/Disarming, Pengaturan Mode, Thruster).
+    Panel Kontrol Operasional ROV (Koneksi LAN/WiFi Jetson Nano, Arming/Disarming, Mode Flight).
     """
-    sig_connect_requested = Signal(str, int)  # (connection_string, baudrate)
+    sig_connect_requested = Signal(str, int)  # (ip_address, baudrate_placeholder=0)
     sig_disconnect_requested = Signal()
     sig_arm_requested = Signal(bool)          # True untuk Arm, False untuk Disarm
     sig_mode_requested = Signal(str)          # ("MANUAL", "STABILIZE", "DEPTH_HOLD")
@@ -21,33 +21,30 @@ class ControlPanel(QWidget):
     def _init_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(10)
 
-        # 1. Groupbox Koneksi MAVLink
-        conn_group = QGroupBox("CONNECTION SETTINGS")
+        # 1. Groupbox Koneksi LAN/WiFi Jetson Nano
+        conn_group = QGroupBox("JETSON NANO LAN / WIFI CONNECTION")
         conn_layout = QVBoxLayout(conn_group)
+        conn_layout.setSpacing(8)
 
         row1 = QHBoxLayout()
-        row1.addWidget(QLabel("Target / Port:"))
+        row1.addWidget(QLabel("IP Jetson Nano:"))
+        
         self.combo_target = QComboBox()
         self.combo_target.addItems([
-            "lan:127.0.0.1 (Local JSON Bridge)",
-            "lan:192.168.2.2 (Jetson Nano LAN)",
-            "udp:127.0.0.1:14550",
-            "/dev/ttyACM0",
-            "/dev/ttyUSB0"
+            "192.168.2.2",
+            "192.168.1.100",
+            "192.168.43.149",
+            "127.0.0.1",
+            "10.0.0.2"
         ])
         self.combo_target.setEditable(True)
-        row1.addWidget(self.combo_target)
+        self.combo_target.setToolTip("Ketik manual alamat IP Jetson Nano (LAN/WiFi) lalu klik CONNECT")
+        row1.addWidget(self.combo_target, stretch=1)
         conn_layout.addLayout(row1)
 
-        row2 = QHBoxLayout()
-        row2.addWidget(QLabel("Baudrate:"))
-        self.spin_baud = QComboBox()
-        self.spin_baud.addItems(["115200", "57600", "9600", "921600"])
-        row2.addWidget(self.spin_baud)
-        conn_layout.addLayout(row2)
-
-        self.btn_connect = QPushButton("CONNECT ROV")
+        self.btn_connect = QPushButton("CONNECT TO JETSON")
         self.btn_connect.setObjectName("btn_connect")
         self.btn_connect.setCheckable(True)
         self.btn_connect.clicked.connect(self._on_connect_toggled)
@@ -71,6 +68,7 @@ class ControlPanel(QWidget):
         # 3. Groupbox Flight Modes
         mode_group = QGroupBox("FLIGHT MODES")
         mode_layout = QGridLayout(mode_group)
+        mode_layout.setSpacing(6)
 
         self.btn_mode_manual = QPushButton("MANUAL")
         self.btn_mode_manual.clicked.connect(lambda: self.sig_mode_requested.emit("MANUAL"))
@@ -94,10 +92,13 @@ class ControlPanel(QWidget):
 
     def _on_connect_toggled(self, checked):
         if checked:
-            conn_str = self.combo_target.currentText().strip()
-            baud = int(self.spin_baud.currentText().strip())
-            self.btn_connect.setText("CONNECTING...")
-            self.sig_connect_requested.emit(conn_str, baud)
+            # Ambil IP address dari combobox / input manual
+            raw_text = self.combo_target.currentText().strip()
+            # Bersihkan jika ada tambahan keterangan setelah spasi
+            ip_str = raw_text.split(" ")[0].strip()
+            
+            self.btn_connect.setText("CONNECTING TO JETSON...")
+            self.sig_connect_requested.emit(ip_str, 0)  # Baudrate 0 karena LAN/WiFi
         else:
             self.sig_disconnect_requested.emit()
 
@@ -112,13 +113,13 @@ class ControlPanel(QWidget):
     def set_connected_state(self, connected: bool):
         if connected:
             self.btn_connect.setChecked(True)
-            self.btn_connect.setText("DISCONNECT ROV")
+            self.btn_connect.setText("DISCONNECT JETSON")
             self.btn_arm.setEnabled(True)
             for btn in self._mode_buttons:
                 btn.setEnabled(True)
         else:
             self.btn_connect.setChecked(False)
-            self.btn_connect.setText("CONNECT ROV")
+            self.btn_connect.setText("CONNECT TO JETSON")
             self.btn_arm.setChecked(False)
             self.btn_arm.setText("DISARMED (CLICK TO ARM)")
             self.btn_arm.setEnabled(False)
