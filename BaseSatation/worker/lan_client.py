@@ -81,12 +81,28 @@ class LANClientWorker(QObject):
             except Exception:
                 pass
 
+            # Mulai thread Heartbeat (auto-discovery pinger setiap 1.5 detik) agar Jetson selalu tahu IP Base Station
+            if not hasattr(self, '_heartbeat_thread') or not self._heartbeat_thread or not self._heartbeat_thread.is_alive():
+                self._heartbeat_thread = threading.Thread(target=self._heartbeat_loop, name="LANHeartbeatLoop", daemon=True)
+                self._heartbeat_thread.start()
+
             self.sig_connected.emit(True)
             self.sig_log.emit(f"[LAN Client] Berhasil tersambung ke LAN Bridge & Camera Stream di {self.rov_ip}!", "SUCCESS")
 
         except Exception as e:
             self.sig_log.emit(f"[LAN Client ERROR] Gagal menghubungkan LAN: {e}", "ERROR")
             self.sig_connected.emit(False)
+
+    def _heartbeat_loop(self):
+        while self._running and hasattr(self, 'rov_ip') and self.rov_ip:
+            try:
+                self.send_command({"cmd": "PING"})
+                if self._cmd_sock:
+                    ping_stream = json.dumps({"cmd": "PING_STREAM"}).encode("utf-8")
+                    self._cmd_sock.sendto(ping_stream, (self.rov_ip, 9005))
+            except Exception:
+                pass
+            time.sleep(1.5)
 
     def disconnect_lan(self):
         self._running = False

@@ -3,3 +3,4 @@ pymavlink>=2.4.39
 pyserial>=3.5
 lxml>=4.8.0
 fastcrc>=0.3.0
+pygame>=2.6.0

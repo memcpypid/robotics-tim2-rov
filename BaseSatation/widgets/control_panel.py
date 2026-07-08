@@ -13,6 +13,7 @@ class ControlPanel(QWidget):
     sig_disconnect_requested = Signal()
     sig_arm_requested = Signal(bool)          # True untuk Arm, False untuk Disarm
     sig_mode_requested = Signal(str)          # ("MANUAL", "STABILIZE", "DEPTH_HOLD")
+    sig_joystick_enable_toggled = Signal(bool)# True untuk enable joystick, False untuk disable
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -88,7 +89,42 @@ class ControlPanel(QWidget):
         self._mode_buttons = [self.btn_mode_manual, self.btn_mode_stab, self.btn_mode_depth]
 
         main_layout.addWidget(mode_group)
+
+        # 4. Groupbox USB Joystick / Gamepad Control
+        joy_group = QGroupBox("USB JOYSTICK / GAMEPAD MANUAL CONTROL")
+        joy_layout = QVBoxLayout(joy_group)
+        joy_layout.setSpacing(6)
+
+        self.lbl_joystick_status = QLabel("🎮 Status: Tidak Ada Joystick USB Tercolok")
+        self.lbl_joystick_status.setStyleSheet("font-size: 11px; color: #899cb8; font-weight: bold;")
+        joy_layout.addWidget(self.lbl_joystick_status)
+
+        self.btn_joystick_toggle = QPushButton("ENABLE JOYSTICK CONTROL")
+        self.btn_joystick_toggle.setCheckable(True)
+        self.btn_joystick_toggle.setChecked(True) # Aktif secara default saat dicolok
+        self.btn_joystick_toggle.setStyleSheet("padding: 6px; font-weight: bold;")
+        self.btn_joystick_toggle.clicked.connect(lambda checked: self.sig_joystick_enable_toggled.emit(checked))
+        joy_layout.addWidget(self.btn_joystick_toggle)
+
+        self.lbl_joystick_axes = QLabel("Kendali Live: X: 0 | Y: 0 | Z: 500 (Hover) | R: 0")
+        self.lbl_joystick_axes.setStyleSheet("font-size: 11px; color: #00e5ff; font-family: Consolas, monospace;")
+        joy_layout.addWidget(self.lbl_joystick_axes)
+
+        main_layout.addWidget(joy_group)
         main_layout.addStretch()
+
+    def set_joystick_status(self, connected: bool, device_name: str):
+        if connected:
+            self.lbl_joystick_status.setText(f"🎮 Aktif: {device_name}")
+            self.lbl_joystick_status.setStyleSheet("font-size: 11px; color: #40bf6a; font-weight: bold;")
+            self.btn_joystick_toggle.setEnabled(True)
+        else:
+            self.lbl_joystick_status.setText("🎮 Status: Tidak Ada Joystick USB Tercolok")
+            self.lbl_joystick_status.setStyleSheet("font-size: 11px; color: #e55039; font-weight: bold;")
+            self.lbl_joystick_axes.setText("Kendali Live: X: 0 | Y: 0 | Z: 500 (Hover) | R: 0")
+
+    def update_joystick_display(self, x: int, y: int, z: int, r: int):
+        self.lbl_joystick_axes.setText(f"Kendali Live: X:{x:+4d} | Y:{y:+4d} | Z:{z:4d} | R:{r:+4d}")
 
     def _on_connect_toggled(self, checked):
         if checked:

@@ -10,7 +10,7 @@ from widgets import (
     ControlPanel, VideoPanel, LogPanel, QRPanel,
     TrajectoryPanel, DesignROVPanel
 )
-from worker import ROVWorker, DualVideoReceiverManager
+from worker import ROVWorker, DualVideoReceiverManager, JoystickWorker
 from styles import DARK_HUD_THEME
 
 
@@ -168,7 +168,17 @@ class MainWindow(QMainWindow):
         self.video_receivers.sig_log.connect(self.log_panel.append_log)
         self.video_receivers.start_all()
 
-        self.log_panel.append_log("Cockpit GUI v2.0 siap. Dual Camera Receiver, QR Decoder, & Trajectory aktif.", "INFO")
+        # Inisialisasi & Start USB Joystick Worker
+        self.joystick_worker = JoystickWorker(self)
+        self.joystick_worker.sig_log.connect(self.log_panel.append_log)
+        self.joystick_worker.sig_joystick_status.connect(self.control_panel.set_joystick_status)
+        self.joystick_worker.sig_manual_control.connect(self._on_joystick_control)
+        self.joystick_worker.sig_arm_toggled.connect(lambda: self.worker.set_armed(True))
+        self.joystick_worker.sig_disarm_toggled.connect(lambda: self.worker.set_armed(False))
+        self.control_panel.sig_joystick_enable_toggled.connect(self.joystick_worker.set_enabled)
+        self.joystick_worker.start()
+
+        self.log_panel.append_log("Cockpit GUI v2.0 siap. Dual Camera, QR Decoder, & USB Joystick siap.", "INFO")
 
     def _init_clock(self):
         self.clock_timer = QTimer(self)
@@ -227,8 +237,14 @@ class MainWindow(QMainWindow):
             cam_name = getattr(state, 'qr_last_cam', '')
             self.qr_panel.update_qr_data(state.qr_last_code, time_str, cam_name, pixmap)
 
+    def _on_joystick_control(self, x: int, y: int, z: int, r: int, buttons: int):
+        self.control_panel.update_joystick_display(x, y, z, r)
+        self.worker.send_manual_control(x, y, z, r, buttons)
+
     def closeEvent(self, event):
         """Clean up threads & MAVLink connection saat aplikasi ditutup."""
+        if hasattr(self, 'joystick_worker'):
+            self.joystick_worker.stop()
         self.video_receivers.stop_all()
         self.worker.disconnect_rov()
         if self.worker_thread.isRunning():

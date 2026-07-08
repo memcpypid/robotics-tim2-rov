@@ -133,6 +133,9 @@ class ROVLANServer:
         cmd = cmd_json.get("cmd", "").upper()
         print(f"[LANServer] Perintah diterima dari GUI: {cmd}")
 
+        if cmd in ["PING", "PING_STREAM"]:
+            return {"status": "OK", "cmd": "PONG", "timestamp": time.time()}
+
         if not self.rov or not self.rov.is_connected():
             return {"status": "ERROR", "message": "ROV belum terhubung ke Pixhawk flight controller!"}
 
@@ -159,9 +162,6 @@ class ROVLANServer:
                 buttons = int(cmd_json.get("buttons", 0))
                 success = self.rov.move(x, y, z, r, buttons)
                 return {"status": "OK" if success else "ERROR", "cmd": "MOVE", "success": success}
-
-            elif cmd == "PING":
-                return {"status": "OK", "cmd": "PONG", "timestamp": time.time()}
 
             else:
                 return {"status": "ERROR", "message": f"Perintah tidak dikenali: {cmd}"}
