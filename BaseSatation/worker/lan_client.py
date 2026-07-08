@@ -40,29 +40,35 @@ class LANClientWorker(QObject):
         self._listen_thread: Optional[threading.Thread] = None
         self._last_packet_time = 0.0
 
-    def connect_lan(self, rov_ip: str = "127.0.0.1", telemetry_port: int = 9000, command_port: int = 9001):
-        if self._running:
-            self.disconnect_lan()
-
-        self.rov_ip = rov_ip
+    def start_receiver(self, telemetry_port: int = 9000):
+        """Membuka socket UDP di port 9000 secara otomatis saat aplikasi berjalan untuk menerima QR & telemetri."""
+        if self._running and self._telemetry_sock:
+            return
         self.telemetry_port = telemetry_port
-        self.command_port = command_port
-
-        self.sig_log.emit(f"[LAN Client] Membuka koneksi UDP LAN ke {self.rov_ip}...", "INFO")
-
         try:
-            # Socket penerima telemetri (bind di port lokal 9000)
             self._telemetry_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self._telemetry_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self._telemetry_sock.bind(("0.0.0.0", self.telemetry_port))
             self._telemetry_sock.settimeout(1.0)
 
-            # Socket pengirim perintah
             self._cmd_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
             self._running = True
             self._listen_thread = threading.Thread(target=self._listen_telemetry_loop, name="LANClientListenLoop", daemon=True)
             self._listen_thread.start()
+            self.sig_log.emit(f"[LAN Client] Auto-listening telemetri & QR live di port UDP {self.telemetry_port}", "INFO")
+        except Exception as e:
+            self.sig_log.emit(f"[LAN Client ERROR] Gagal bind port UDP {self.telemetry_port}: {e}", "ERROR")
+
+    def connect_lan(self, rov_ip: str = "127.0.0.1", telemetry_port: int = 9000, command_port: int = 9001):
+        self.rov_ip = rov_ip
+        self.telemetry_port = telemetry_port
+        self.command_port = command_port
+
+        self.sig_log.emit(f"[LAN Client] Menghubungkan target perintah ke {self.rov_ip}...", "INFO")
+
+        try:
+            if not self._running or not self._telemetry_sock:
+                self.start_receiver(telemetry_port)
 
             # Kirim paket PING awal untuk registrasi IP kita di ROVLANServer
             self.send_command({"cmd": "PING"})
@@ -70,7 +76,7 @@ class LANClientWorker(QObject):
             self.sig_log.emit(f"[LAN Client] Berhasil tersambung ke LAN Bridge di {self.rov_ip}!", "SUCCESS")
 
         except Exception as e:
-            self.sig_log.emit(f"[LAN Client ERROR] Gagal membuka port LAN: {e}", "ERROR")
+            self.sig_log.emit(f"[LAN Client ERROR] Gagal menghubungkan LAN: {e}", "ERROR")
             self.sig_connected.emit(False)
 
     def disconnect_lan(self):

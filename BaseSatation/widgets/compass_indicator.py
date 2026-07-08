@@ -20,6 +20,8 @@ class CompassIndicator(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
+        if not painter.isActive():
+            return
         painter.setRenderHint(QPainter.Antialiasing)
 
         width = self.width()

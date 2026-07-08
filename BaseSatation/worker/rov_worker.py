@@ -28,7 +28,11 @@ class ROVWorker(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.rov = None
-        self.lan_client: Optional[LANClientWorker] = None
+        self.lan_client = LANClientWorker(self)
+        self.lan_client.sig_log.connect(self.sig_log)
+        self.lan_client.sig_connected.connect(self.sig_connected)
+        self.lan_client.sig_state_updated.connect(self.sig_state_updated)
+        self.lan_client.start_receiver(telemetry_port=9000)
         self._timer = QTimer(self)
         self._timer.setInterval(100)  # 10 Hz telemetry polling
         self._timer.timeout.connect(self._poll_telemetry)

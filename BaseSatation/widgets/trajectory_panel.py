@@ -72,6 +72,8 @@ class TrajectoryCanvas(QFrame):
     def paintEvent(self, event):
         super().paintEvent(event)
         painter = QPainter(self)
+        if not painter.isActive():
+            return
         painter.setRenderHint(QPainter.Antialiasing)
 
         width = self.width()

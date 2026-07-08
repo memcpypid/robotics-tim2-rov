@@ -10,7 +10,7 @@ from widgets import (
     ControlPanel, VideoPanel, LogPanel, QRPanel,
     TrajectoryPanel, DesignROVPanel
 )
-from worker import ROVWorker
+from worker import ROVWorker, DualVideoReceiverManager
 from styles import DARK_HUD_THEME
 
 
@@ -159,7 +159,15 @@ class MainWindow(QMainWindow):
         self.worker.sig_connected.connect(self._on_connection_changed)
         self.worker.sig_state_updated.connect(self._on_state_updated)
 
-        self.log_panel.append_log("Cockpit GUI v2.0 siap. Dual Camera, QR Decoder, & Trajectory aktif.", "INFO")
+        # Inisialisasi & Start UDP Video Stream Receiver (CAM 1, CAM 2, & QR Crop)
+        self.video_receivers = DualVideoReceiverManager(port_cam1=9002, port_cam2=9003, port_qr=9004, parent=self)
+        self.video_receivers.sig_frame_cam1.connect(self.video_panel.update_cam1_frame)
+        self.video_receivers.sig_frame_cam2.connect(self.video_panel.update_cam2_frame)
+        self.video_receivers.sig_frame_qr.connect(self.qr_panel.set_qr_image)
+        self.video_receivers.sig_log.connect(self.log_panel.append_log)
+        self.video_receivers.start_all()
+
+        self.log_panel.append_log("Cockpit GUI v2.0 siap. Dual Camera Receiver, QR Decoder, & Trajectory aktif.", "INFO")
 
     def _init_clock(self):
         self.clock_timer = QTimer(self)
@@ -197,10 +205,30 @@ class MainWindow(QMainWindow):
 
         # Update QR Code hasil pembacaan jika ada QR baru
         if getattr(state, 'qr_last_code', ''):
-            self.qr_panel.update_qr_data(state.qr_last_code)
+            import time
+            import base64
+            from PySide6.QtGui import QPixmap
+            time_str = ""
+            if getattr(state, 'qr_last_time', 0.0) > 0:
+                time_str = time.strftime('%H:%M:%S', time.localtime(state.qr_last_time))
+            
+            pixmap = None
+            qr_img_str = getattr(state, 'qr_last_image', '')
+            if qr_img_str:
+                try:
+                    img_data = base64.b64decode(qr_img_str)
+                    pix = QPixmap()
+                    if pix.loadFromData(img_data):
+                        pixmap = pix
+                except Exception as e:
+                    print(f"[MainWindow WARNING] Gagal decode base64 QR Image: {e}")
+
+            cam_name = getattr(state, 'qr_last_cam', '')
+            self.qr_panel.update_qr_data(state.qr_last_code, time_str, cam_name, pixmap)
 
     def closeEvent(self, event):
         """Clean up threads & MAVLink connection saat aplikasi ditutup."""
+        self.video_receivers.stop_all()
         self.worker.disconnect_rov()
         if self.worker_thread.isRunning():
             self.worker_thread.quit()

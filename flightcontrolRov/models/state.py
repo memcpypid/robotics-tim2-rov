@@ -40,6 +40,8 @@ class ROVState:
     leak_detected: bool = False      # Indikator kebocoran internal (jika ada sensor leak)
     qr_last_code: str = ""           # Data QR Code terakhir yang terdeteksi
     qr_last_time: float = 0.0        # Waktu deteksi QR Code terakhir
+    qr_last_cam: str = ""            # Sumber kamera yang mendeteksi QR Code (CAM 1 / CAM 2)
+    qr_last_image: str = ""          # Base64 string gambar crop QR Code hasil capture
 
 
 class StateManager:

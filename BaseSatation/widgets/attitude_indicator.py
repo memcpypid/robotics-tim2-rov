@@ -21,77 +21,55 @@ class AttitudeIndicator(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
+        if not painter.isActive():
+            return
         painter.setRenderHint(QPainter.Antialiasing)
-        try:
-            width = self.width()
-            height = self.height()
-            center_x = width / 2.0
-            center_y = height / 2.0
-            radius = min(width, height) / 2.0 - 10
 
-            painter.save()
-            clip_path = QPainterPath()
-            clip_path.addEllipse(QPointF(center_x, center_y), radius, radius)
-            painter.setClipPath(clip_path)
+        width = self.width()
+        height = self.height()
+        center_x = width / 2.0
+        center_y = height / 2.0
+        radius = min(width, height) / 2.0 - 10
 
-            painter.translate(center_x, center_y)
-            painter.rotate(-self._roll)
+        # 1. Horizon & Pitch Ladder
+        painter.save()
+        clip_path = QPainterPath()
+        clip_path.addEllipse(QPointF(center_x, center_y), radius, radius)
+        painter.setClipPath(clip_path)
 
-            pitch_offset = self._pitch * (radius / 30.0)
-            painter.translate(0, pitch_offset)
+        painter.translate(center_x, center_y)
+        painter.rotate(-self._roll)
 
-            sky_rect = QRectF(-width * 2, -height * 2, width * 4, height * 2)
-            painter.fillRect(sky_rect, QColor("#1b4b7a"))
+        pitch_offset = self._pitch * (radius / 30.0)
+        painter.translate(0, pitch_offset)
 
-            sea_rect = QRectF(-width * 2, 0, width * 4, height * 2)
-            painter.fillRect(sea_rect, QColor("#0d2137"))
+        sky_rect = QRectF(-width * 2, -height * 2, width * 4, height * 2)
+        painter.fillRect(sky_rect, QColor("#1b4b7a"))
 
-            horizon_pen = QPen(QColor("#00e5ff"), 2, Qt.SolidLine)
-            painter.setPen(horizon_pen)
-            painter.drawLine(-width * 2, 0, width * 2, 0)
+        sea_rect = QRectF(-width * 2, 0, width * 4, height * 2)
+        painter.fillRect(sea_rect, QColor("#0d2137"))
 
-            font = QFont("Segoe UI", 8, QFont.Bold)
-            painter.setFont(font)
-            painter.setPen(QPen(QColor("#ffffff"), 1.5))
+        horizon_pen = QPen(QColor("#00e5ff"), 2, Qt.SolidLine)
+        painter.setPen(horizon_pen)
+        painter.drawLine(-width * 2, 0, width * 2, 0)
 
-            for p in range(-60, 61, 10):
-                if p == 0:
-                    continue
-                y_pos = -p * (radius / 30.0)
-                line_len = 30 if p % 20 == 0 else 18
-                painter.drawLine(QPointF(-line_len, y_pos), QPointF(line_len, y_pos))
-                if p % 20 == 0:
-                    painter.drawText(QPointF(-line_len - 22, y_pos + 4), f"{p}°")
-                    painter.drawText(QPointF(line_len + 4, y_pos + 4), f"{p}°")
+        font = QFont("Segoe UI", 8, QFont.Bold)
+        painter.setFont(font)
+        painter.setPen(QPen(QColor("#ffffff"), 1.5))
 
-            painter.restore()
+        for p in range(-60, 61, 10):
+            if p == 0:
+                continue
+            y_pos = -p * (radius / 30.0)
+            line_len = 30 if p % 20 == 0 else 18
+            painter.drawLine(QPointF(-line_len, y_pos), QPointF(line_len, y_pos))
+            if p % 20 == 0:
+                painter.drawText(QPointF(-line_len - 22, y_pos + 4), f"{p}°")
+                painter.drawText(QPointF(line_len + 4, y_pos + 4), f"{p}°")
 
-            painter.save()
-            painter.translate(center_x, center_y)
+        painter.restore()
 
-            ring_pen = QPen(QColor("#00e5ff"), 3)
-            painter.setPen(ring_pen)
-            painter.setBrush(Qt.NoBrush)
-            painter.drawEllipse(QPointF(0, 0), radius, radius)
-
-            symbol_pen = QPen(QColor("#ffcc00"), 3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
-            painter.setPen(symbol_pen)
-            painter.drawLine(QPointF(-40, 0), QPointF(-15, 0))
-            painter.drawLine(QPointF(-15, 0), QPointF(-15, 8))
-            painter.drawLine(QPointF(15, 0), QPointF(40, 0))
-            painter.drawLine(QPointF(15, 0), QPointF(15, 8))
-            painter.setBrush(QBrush(QColor("#ffcc00")))
-            painter.drawEllipse(QPointF(0, 0), 3, 3)
-
-            painter.restore()
-
-            painter.setPen(QColor("#00e5ff"))
-            painter.setFont(QFont("Segoe UI", 9, QFont.Bold))
-            painter.drawText(QRectF(0, height - 26, width, 20), Qt.AlignCenter, f"R: {self._roll:.1f}° | P: {self._pitch:.1f}°")
-        finally:
-            if painter.isActive():
-                painter.end()
-
+        # 2. Ring & Center Aircraft Symbol
         painter.save()
         painter.translate(center_x, center_y)
 
@@ -111,6 +89,7 @@ class AttitudeIndicator(QWidget):
 
         painter.restore()
 
+        # 3. Label info Roll & Pitch
         painter.setPen(QColor("#00e5ff"))
         painter.setFont(QFont("Segoe UI", 9, QFont.Bold))
         painter.drawText(QRectF(0, height - 26, width, 20), Qt.AlignCenter, f"R: {self._roll:.1f}° | P: {self._pitch:.1f}°")
