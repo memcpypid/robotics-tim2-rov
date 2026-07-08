@@ -149,39 +149,62 @@ class GStreamerFrameReceiver(QObject):
         self.sig_log.emit(f"[{self.cam_name} GStreamer Receiver] Layanan H.264 ditutup.", "INFO")
 
     def _listen_loop(self):
-        # 1. Coba pipeline GStreamer RTP H.264 depayloader terlebih dahulu
-        gst_pipeline = (
-            f"udpsrc port={self.port} caps=\"application/x-rtp, media=video, encoding-name=H264, payload=96\" ! "
-            f"rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw, format=BGR ! appsink drop=true max-buffers=1 sync=false"
-        )
-        self.cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
-        
-        # 2. Jika GStreamer depayloader gagal di PC lokal, coba langsung via FFMPEG UDP
-        if not self.cap.isOpened():
-            self.sig_log.emit(f"[{self.cam_name}] GStreamer depay tidak tersedia, mencoba FFMPEG udp://@0.0.0.0:{self.port}...", "WARNING")
-            self.cap = cv2.VideoCapture(f"udp://@0.0.0.0:{self.port}", cv2.CAP_FFMPEG)
+        import os
+        # Atur timeout FFMPEG ke 1 detik (1000000 us) agar tidak pernah hang 30 detik saat menunggu stream
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "timeout;1000000|rw_timeout;1000000|probe_size;32768|analyzeduration;500000|overrun_nonfatal;1|fifo_size;500000"
 
-        if not self.cap.isOpened():
-            self.sig_log.emit(f"[{self.cam_name} ERROR] Gagal membuka stream H.264 di port {self.port}", "ERROR")
-            self._running = False
-            return
+        notified_wait = False
 
-        self.sig_log.emit(f"[{self.cam_name} SUCCESS] H.264 Stream terhubung @ port {self.port}!", "SUCCESS")
+        while self._running:
+            # 1. Coba pipeline GStreamer MPEG-TS H.264 depayloader terlebih dahulu (jika CAP_GSTREAMER tersedia di OpenCV)
+            gst_pipeline = (
+                f"udpsrc port={self.port} ! tsdemux ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw, format=BGR ! appsink drop=true max-buffers=1 sync=false"
+            )
+            self.cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
+            
+            # 2. Jika GStreamer C++ backend tidak ada di opencv-python wheel, coba FFMPEG (otomatis membaca MPEG-TS over UDP)
+            if not self.cap.isOpened():
+                url = f"udp://0.0.0.0:{self.port}?timeout=1000000&overrun_nonfatal=1&fifo_size=500000"
+                self.cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
 
-        while self._running and self.cap.isOpened():
-            ret, frame = self.cap.read()
-            if ret and frame is not None and frame.size > 0:
+            if not self.cap.isOpened():
+                if not notified_wait:
+                    self.sig_log.emit(f"[{self.cam_name}] Menunggu aliran video H.264 di port {self.port}...", "INFO")
+                    notified_wait = True
+                if self.cap:
+                    try:
+                        self.cap.release()
+                    except Exception:
+                        pass
+                    self.cap = None
+                time.sleep(1.5)
+                continue
+
+            self.sig_log.emit(f"[{self.cam_name} SUCCESS] H.264 Stream terhubung @ port {self.port}!", "SUCCESS")
+            notified_wait = False
+
+            while self._running and self.cap and self.cap.isOpened():
+                ret, frame = self.cap.read()
+                if ret and frame is not None and frame.size > 0:
+                    try:
+                        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        h, w, ch = rgb_frame.shape
+                        qimg = QImage(rgb_frame.data, w, h, ch * w, QImage.Format_RGB888)
+                        pix = QPixmap.fromImage(qimg)
+                        self.sig_frame_received.emit(pix)
+                    except Exception:
+                        pass
+                else:
+                    time.sleep(0.02)
+                    # Jika read gagal terus menerus, putus dan reconnect lagi di outer loop
+                    break
+
+            if self.cap:
                 try:
-                    # Konversi BGR ke RGB untuk Qt
-                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    h, w, ch = rgb_frame.shape
-                    qimg = QImage(rgb_frame.data, w, h, ch * w, QImage.Format_RGB888)
-                    pix = QPixmap.fromImage(qimg)
-                    self.sig_frame_received.emit(pix)
+                    self.cap.release()
                 except Exception:
                     pass
-            else:
-                time.sleep(0.02)
+                self.cap = None
 
 
 class DualVideoReceiverManager(QObject):

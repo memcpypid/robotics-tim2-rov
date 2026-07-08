@@ -122,7 +122,7 @@ class GStreamerH264Streamer:
         pipeline_jetson = (
             f"appsrc ! video/x-raw, format=BGR ! queue ! videoconvert ! video/x-raw, format=BGRx ! "
             f"nvvidconv ! video/x-raw(memory:NVMM), format=NV12 ! nvv4l2h264enc bitrate={self.bitrate} preset-level=1 insert-sps-pps=true idrinterval=15 ! "
-            f"rtph264pay config-interval=1 pt=96 ! udpsink host={self.target_ip} port={self.port} async=false sync=false"
+            f"h264parse ! mpegtsmux alignment=7 ! udpsink host={self.target_ip} port={self.port} async=false sync=false"
         )
         writer = cv2.VideoWriter(pipeline_jetson, cv2.CAP_GSTREAMER, 30.0, (w, h), True)
         if writer.isOpened():
@@ -136,7 +136,7 @@ class GStreamerH264Streamer:
         pipeline_fallback = (
             f"appsrc ! video/x-raw, format=BGR ! queue ! videoconvert ! video/x-raw, format=I420 ! "
             f"x264enc tune=zerolatency bitrate={self.bitrate // 1000} speed-preset=ultrafast key-int-max=15 ! "
-            f"rtph264pay config-interval=1 pt=96 ! udpsink host={self.target_ip} port={self.port} async=false sync=false"
+            f"h264parse ! mpegtsmux alignment=7 ! udpsink host={self.target_ip} port={self.port} async=false sync=false"
         )
         writer = cv2.VideoWriter(pipeline_fallback, cv2.CAP_GSTREAMER, 30.0, (w, h), True)
         if writer.isOpened():
