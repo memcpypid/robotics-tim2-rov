@@ -59,6 +59,7 @@ class UDPFrameReceiver(QObject):
         self.sig_log.emit(f"[{self.cam_name} Receiver] Layanan stream video ditutup.", "INFO")
 
     def _listen_loop(self):
+        last_processed_id = -1
         while self._running and self.sock:
             try:
                 packet, addr = self.sock.recvfrom(65535)
@@ -77,6 +78,16 @@ class UDPFrameReceiver(QObject):
                 packet_id, total_chunks, chunk_idx = struct.unpack("!IBB", packet[:6])
                 payload = packet[6:]
                 
+                # Zero-Latency Policy: Jika ada paket dari ID lama (< last_processed_id), langsung buang (drop oldest)
+                if packet_id < last_processed_id and (last_processed_id - packet_id) < 10000:
+                    continue
+
+                # Jika ID paket lebih baru dari yang pernah kita proses, bersihkan sisa buffer lama agar RAM selalu bersih & tidak ada antrean delay
+                if packet_id > last_processed_id:
+                    if packet_id - last_processed_id > 1 or len(self._buffer) > 2:
+                        self._buffer.clear()
+                        self._expected_chunks.clear()
+
                 if packet_id not in self._buffer:
                     self._buffer[packet_id] = {}
                     self._expected_chunks[packet_id] = total_chunks
@@ -87,15 +98,11 @@ class UDPFrameReceiver(QObject):
                 if len(self._buffer[packet_id]) == total_chunks:
                     jpeg_data = b"".join(self._buffer[packet_id][i] for i in range(total_chunks))
                     
-                    # Bersihkan buffer dari paket lama untuk mencegah kebocoran memori
-                    keys_to_clean = [k for k in self._buffer.keys() if k < packet_id - 5]
-                    for k in keys_to_clean:
-                        self._buffer.pop(k, None)
-                        self._expected_chunks.pop(k, None)
+                    last_processed_id = packet_id
                     self._buffer.pop(packet_id, None)
                     self._expected_chunks.pop(packet_id, None)
 
-                    # Decode dari bytes JPEG ke QPixmap
+                    # Decode dari bytes JPEG ke QPixmap secara kilat
                     qimg = QImage.fromData(jpeg_data, "JPG")
                     if not qimg.isNull():
                         pix = QPixmap.fromImage(qimg)

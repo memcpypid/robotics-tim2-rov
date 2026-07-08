@@ -49,9 +49,9 @@ class ControlPanel(QWidget):
         row2 = QHBoxLayout()
         row2.addWidget(QLabel("Stream Mode:"))
         self.combo_stream_mode = QComboBox()
-        self.combo_stream_mode.addItems(["GStreamer H.264 (Ultra-Light)", "UDP JPEG (Optimized)"])
-        self.combo_stream_mode.setCurrentIndex(1)  # Default ke UDP JPEG agar langsung responsif saat startup
-        self.combo_stream_mode.setToolTip("Pilih metode penerimaan video stream dari Jetson Nano (GStreamer H.264 vs UDP JPEG)")
+        self.combo_stream_mode.addItems(["GStreamer H.264 (Ultra-Light)", "UDP Turbo (Sangat Ringan & Minim Delay)"])
+        self.combo_stream_mode.setCurrentIndex(1)  # Default ke UDP Turbo agar langsung responsif dan minim delay
+        self.combo_stream_mode.setToolTip("Pilih metode penerimaan video stream dari Jetson Nano (GStreamer H.264 vs UDP Turbo)")
         self.combo_stream_mode.currentIndexChanged.connect(self._on_stream_mode_changed)
         row2.addWidget(self.combo_stream_mode, stretch=1)
         conn_layout.addLayout(row2)
