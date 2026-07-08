@@ -160,9 +160,8 @@ class MainWindow(QMainWindow):
         self.worker.sig_state_updated.connect(self._on_state_updated)
 
         # Inisialisasi & Start UDP Video Stream Receiver (CAM 1, CAM 2, & QR Crop)
-        self.video_receivers = DualVideoReceiverManager(port_cam1=9002, port_cam2=9003, port_qr=9004, mode="udp", parent=self)
+        self.video_receivers = DualVideoReceiverManager(port_cam1=9002, port_cam2=9003, port_qr=9004, parent=self)
         self.worker.sig_target_ip_changed.connect(self.video_receivers.set_target_ip)
-        self.control_panel.sig_stream_mode_changed.connect(self.video_receivers.set_stream_mode)
         self.video_receivers.sig_frame_cam1.connect(self.video_panel.update_cam1_frame)
         self.video_receivers.sig_frame_cam2.connect(self.video_panel.update_cam2_frame)
         self.video_receivers.sig_frame_qr.connect(self.qr_panel.set_qr_image)

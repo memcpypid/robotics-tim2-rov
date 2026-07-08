@@ -14,7 +14,6 @@ class ControlPanel(QWidget):
     sig_arm_requested = Signal(bool)          # True untuk Arm, False untuk Disarm
     sig_mode_requested = Signal(str)          # ("MANUAL", "STABILIZE", "DEPTH_HOLD")
     sig_joystick_enable_toggled = Signal(bool)# True untuk enable joystick, False untuk disable
-    sig_stream_mode_changed = Signal(str)     # ("gstreamer" atau "udp")
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -45,16 +44,6 @@ class ControlPanel(QWidget):
         self.combo_target.setToolTip("Ketik manual alamat IP Jetson Nano (LAN/WiFi) lalu klik CONNECT")
         row1.addWidget(self.combo_target, stretch=1)
         conn_layout.addLayout(row1)
-
-        row2 = QHBoxLayout()
-        row2.addWidget(QLabel("Stream Mode:"))
-        self.combo_stream_mode = QComboBox()
-        self.combo_stream_mode.addItems(["GStreamer H.264 (Ultra-Light)", "UDP Turbo (Sangat Ringan & Minim Delay)"])
-        self.combo_stream_mode.setCurrentIndex(1)  # Default ke UDP Turbo agar langsung responsif dan minim delay
-        self.combo_stream_mode.setToolTip("Pilih metode penerimaan video stream dari Jetson Nano (GStreamer H.264 vs UDP Turbo)")
-        self.combo_stream_mode.currentIndexChanged.connect(self._on_stream_mode_changed)
-        row2.addWidget(self.combo_stream_mode, stretch=1)
-        conn_layout.addLayout(row2)
 
         self.btn_connect = QPushButton("CONNECT TO JETSON")
         self.btn_connect.setObjectName("btn_connect")
@@ -136,12 +125,6 @@ class ControlPanel(QWidget):
 
     def update_joystick_display(self, x: int, y: int, z: int, r: int):
         self.lbl_joystick_axes.setText(f"Kendali Live: X:{x:+4d} | Y:{y:+4d} | Z:{z:4d} | R:{r:+4d}")
-
-    def _on_stream_mode_changed(self, idx: int):
-        if idx == 0:
-            self.sig_stream_mode_changed.emit("gstreamer")
-        else:
-            self.sig_stream_mode_changed.emit("udp")
 
     def _on_connect_toggled(self, checked):
         if checked:

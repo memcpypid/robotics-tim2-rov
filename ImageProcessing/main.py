@@ -14,7 +14,7 @@ import cv2
 
 from camera import DualCameraCapture
 from processing import QRCodeProcessor
-from network import QRDataSender, UDPVideoStreamer, UnifiedVideoStreamer, MJPEGServer
+from network import QRDataSender, UDPVideoStreamer, MJPEGServer
 
 
 def main():
@@ -27,7 +27,6 @@ def main():
     parser.add_argument("--cam2-port", type=int, default=9003, help="Port UDP tujuan stream CAM 2, default: 9003")
     parser.add_argument("--qr-img-port", type=int, default=9004, help="Port UDP tujuan stream gambar crop QR Code, default: 9004")
     parser.add_argument("--mjpeg-port", type=int, default=8080, help="Port HTTP lokal untuk MJPEG stream (/cam1 dan /cam2), default: 8080")
-    parser.add_argument("--stream-mode", default="gstreamer", choices=["gstreamer", "udp"], help="Metode stream video ('gstreamer' untuk Mode 1 H.264 Hardware, 'udp' untuk Optimized JPEG chunking), default: gstreamer")
     parser.add_argument("--show", action="store_true", help="Tampilkan jendela preview lokal OpenCV di layar saat berjalan")
     parser.add_argument("--fps", type=int, default=30, help="Target frame rate pemrosesan loop, default: 30")
     args = parser.parse_args()
@@ -39,7 +38,6 @@ def main():
     print(f"-> CAM 2 (Action Cam USB) : {args.cam2}")
     print(f"-> Target Base Station  : {args.bs_ip if hasattr(args, 'bs_ip') else getattr(args, 'bs-ip', '127.0.0.1')} (Telemetry Port: {args.telemetry_port})")
     print(f"-> Stream UDP Ports     : CAM 1 @ {args.cam1_port} | CAM 2 @ {args.cam2_port} | QR Crop @ {args.qr_img_port}")
-    print(f"-> Stream Method Mode   : {args.stream_mode.upper()}")
     print(f"-> Local MJPEG Server   : http://0.0.0.0:{args.mjpeg_port}/cam1 dan /cam2")
     print("==========================================================\n")
 
@@ -54,8 +52,8 @@ def main():
 
     # 3. Inisialisasi Network Data & Streamer
     qr_sender = QRDataSender(base_station_ip=bs_ip, port=args.telemetry_port)
-    streamer_cam1 = UnifiedVideoStreamer(target_ip=bs_ip, port=args.cam1_port, mode=args.stream_mode)
-    streamer_cam2 = UnifiedVideoStreamer(target_ip=bs_ip, port=args.cam2_port, mode=args.stream_mode)
+    streamer_cam1 = UDPVideoStreamer(target_ip=bs_ip, port=args.cam1_port, jpeg_quality=72)
+    streamer_cam2 = UDPVideoStreamer(target_ip=bs_ip, port=args.cam2_port, jpeg_quality=72)
     streamer_qr = UDPVideoStreamer(target_ip=bs_ip, port=args.qr_img_port, jpeg_quality=80)
     
     def start_auto_discovery():
