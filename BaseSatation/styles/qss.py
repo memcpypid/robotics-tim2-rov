@@ -130,14 +130,55 @@ QComboBox QAbstractItemView {
     selection-color: #00e5ff;
 }
 
+/* Tab Widget & Tab Bars */
+QTabWidget::pane {
+    border: 1px solid #28354d;
+    background-color: #121824;
+    border-radius: 6px;
+    padding: 6px;
+}
+
+QTabBar::tab {
+    background-color: #171f2e;
+    border: 1px solid #28354d;
+    border-bottom: none;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    padding: 8px 18px;
+    margin-right: 4px;
+    color: #899cb8;
+    font-weight: bold;
+}
+
+QTabBar::tab:selected {
+    background-color: #1f2c40;
+    border: 1px solid #00e5ff;
+    border-bottom: 2px solid #1f2c40;
+    color: #00e5ff;
+}
+
+QTabBar::tab:hover:!selected {
+    background-color: #1a2436;
+    color: #ffffff;
+}
+
 /* Labels */
 QLabel {
     color: #c5d2e8;
 }
 QLabel#header_label {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 800;
     color: #00e5ff;
+}
+QLabel#header_team {
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffcc00;
+    background-color: #222014;
+    padding: 4px 14px;
+    border: 1px solid #665200;
+    border-radius: 5px;
 }
 QLabel#value_label {
     font-size: 20px;

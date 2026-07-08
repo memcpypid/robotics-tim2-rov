@@ -4,6 +4,9 @@ from .telemetry_panel import TelemetryPanel
 from .control_panel import ControlPanel
 from .video_panel import VideoPanel
 from .log_panel import LogPanel
+from .qr_panel import QRPanel
+from .trajectory_panel import TrajectoryPanel
+from .design_panel import DesignROVPanel
 
 __all__ = [
     "AttitudeIndicator",
@@ -11,5 +14,8 @@ __all__ = [
     "TelemetryPanel",
     "ControlPanel",
     "VideoPanel",
-    "LogPanel"
+    "LogPanel",
+    "QRPanel",
+    "TrajectoryPanel",
+    "DesignROVPanel"
 ]

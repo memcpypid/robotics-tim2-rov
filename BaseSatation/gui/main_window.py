@@ -1,13 +1,14 @@
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
-    QLabel, QGroupBox
+    QLabel, QGroupBox, QTabWidget
 )
 from PySide6.QtCore import Qt, QThread, QTimer, QDateTime
 from PySide6.QtGui import QIcon
 
 from widgets import (
     AttitudeIndicator, CompassIndicator, TelemetryPanel,
-    ControlPanel, VideoPanel, LogPanel
+    ControlPanel, VideoPanel, LogPanel, QRPanel,
+    TrajectoryPanel, DesignROVPanel
 )
 from worker import ROVWorker
 from styles import DARK_HUD_THEME
@@ -19,8 +20,8 @@ class MainWindow(QMainWindow):
     """
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("BASE STATION ROV - COMMAND COCKPIT v1.0")
-        self.setMinimumSize(1200, 750)
+        self.setWindowTitle("BASE STATION ROV - COMMAND & CONTROL COCKPIT v2.0")
+        self.setMinimumSize(1350, 820)
         self.setStyleSheet(DARK_HUD_THEME)
 
         self._init_ui()
@@ -32,18 +33,27 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(12, 12, 12, 12)
-        main_layout.setSpacing(12)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
 
         # === TOP HEADER BAR ===
         header_layout = QHBoxLayout()
-        self.lbl_title = QLabel("🛸 BASE STATION ROV // COMMAND & CONTROL HUD")
+        
+        self.lbl_title = QLabel("🛸 BASE STATION ROV // COMMAND COCKPIT")
         self.lbl_title.setObjectName("header_label")
         
-        self.lbl_clock = QLabel("CLOCK: 00:00:00 UTC")
-        self.lbl_clock.setStyleSheet("font-size: 14px; font-weight: bold; color: #00e5ff; background-color: #171f2e; padding: 4px 12px; border: 1px solid #28354d; border-radius: 4px;")
+        # Banner Nama TIM & Perguruan Tinggi
+        self.lbl_team = QLabel("🏆 NAMA TIM: TIM 2 ROV | PERGURUAN TINGGI: POLITEKNIK / UNIVERSITAS")
+        self.lbl_team.setObjectName("header_team")
+        self.lbl_team.setToolTip("Bosku bisa mengedit/menyesuaikan nama tim & kampus ini.")
+        
+        # Waktu Lengkap (Hari, Tanggal Bulan Tahun | Jam:Menit:Detik)
+        self.lbl_clock = QLabel("🕒 WAKTU: Menghubungkan jam...")
+        self.lbl_clock.setStyleSheet("font-size: 13px; font-weight: bold; color: #00e5ff; background-color: #171f2e; padding: 6px 14px; border: 1px solid #28354d; border-radius: 5px;")
 
         header_layout.addWidget(self.lbl_title)
+        header_layout.addSpacing(15)
+        header_layout.addWidget(self.lbl_team)
         header_layout.addStretch()
         header_layout.addWidget(self.lbl_clock)
         main_layout.addLayout(header_layout)
@@ -51,10 +61,11 @@ class MainWindow(QMainWindow):
         # === MAIN SPLITTER (LEFT / CENTER / RIGHT) ===
         main_splitter = QSplitter(Qt.Horizontal)
 
-        # 1. LEFT COLUMN: Kontrol & Telemetri
+        # 1. LEFT COLUMN: Kontrol & Telemetri (Termasuk Altimeter Dasar Kolam)
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(8)
         
         self.control_panel = ControlPanel()
         self.telemetry_panel = TelemetryPanel()
@@ -62,21 +73,28 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(self.control_panel)
         left_layout.addWidget(self.telemetry_panel)
         left_layout.addStretch()
-        left_widget.setMinimumWidth(320)
-        left_widget.setMaximumWidth(400)
+        left_widget.setMinimumWidth(340)
+        left_widget.setMaximumWidth(420)
         main_splitter.addWidget(left_widget)
 
-        # 2. CENTER COLUMN: Video Feed & Artificial Horizon / Compass HUD
+        # 2. CENTER COLUMN: Multi-Tab Dashboard (Dual Camera, Trajectory Map, 3D Design)
         center_widget = QWidget()
         center_layout = QVBoxLayout(center_widget)
         center_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Video Canvas
-        self.video_panel = VideoPanel()
-        center_layout.addWidget(self.video_panel, stretch=3)
+        self.center_tabs = QTabWidget()
+        self.center_tabs.setTabPosition(QTabWidget.North)
 
-        # HUD Row (Attitude + Compass)
-        hud_group = QGroupBox("NAVIGATION INSTRUMENTS (6-DOF ATTITUDE & HEADING)")
+        # TAB 1: Dual Display Camera + HUD Instruments
+        tab_cam_widget = QWidget()
+        tab_cam_layout = QVBoxLayout(tab_cam_widget)
+        tab_cam_layout.setContentsMargins(4, 8, 4, 4)
+        tab_cam_layout.setSpacing(8)
+
+        self.video_panel = VideoPanel()  # 2 Display Camera
+        tab_cam_layout.addWidget(self.video_panel, stretch=3)
+
+        hud_group = QGroupBox("NAVIGATION INSTRUMENTS (6-DOF ATTITUDE & HEADING HUD)")
         hud_layout = QHBoxLayout(hud_group)
 
         self.attitude_indicator = AttitudeIndicator()
@@ -84,25 +102,44 @@ class MainWindow(QMainWindow):
 
         hud_layout.addStretch()
         hud_layout.addWidget(self.attitude_indicator)
-        hud_layout.addSpacing(30)
+        hud_layout.addSpacing(40)
         hud_layout.addWidget(self.compass_indicator)
         hud_layout.addStretch()
 
-        center_layout.addWidget(hud_group, stretch=2)
+        tab_cam_layout.addWidget(hud_group, stretch=2)
+        self.center_tabs.addTab(tab_cam_widget, "🎥 2 CH CAMERA FEED & HUD")
+
+        # TAB 2: Trajectory Tracker
+        self.trajectory_panel = TrajectoryPanel()
+        self.center_tabs.addTab(self.trajectory_panel, "🗺️ TRAJECTORY TRACKER")
+
+        # TAB 3: Gambar Design ROV (Nanti saja placeholder)
+        self.design_panel = DesignROVPanel()
+        self.center_tabs.addTab(self.design_panel, "📐 GAMBAR DESIGN ROV (PLACEHOLDER)")
+
+        center_layout.addWidget(self.center_tabs)
         main_splitter.addWidget(center_widget)
 
-        # 3. RIGHT / BOTTOM COLUMN: System Log Console
+        # 3. RIGHT COLUMN: QR Code Decoder & Log Console
+        right_splitter = QSplitter(Qt.Vertical)
+        
+        self.qr_panel = QRPanel()
+        self.log_panel = LogPanel()
+        
+        right_splitter.addWidget(self.qr_panel)
+        right_splitter.addWidget(self.log_panel)
+        right_splitter.setSizes([320, 360])
+        
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
         right_layout.setContentsMargins(0, 0, 0, 0)
-        
-        self.log_panel = LogPanel()
-        right_layout.addWidget(self.log_panel)
-        right_widget.setMinimumWidth(300)
+        right_layout.addWidget(right_splitter)
+        right_widget.setMinimumWidth(320)
+        right_widget.setMaximumWidth(420)
         main_splitter.addWidget(right_widget)
 
-        # Set proporsi awal splitter
-        main_splitter.setSizes([340, 560, 300])
+        # Proporsi awal splitter kanan-kiri
+        main_splitter.setSizes([360, 640, 350])
         main_layout.addWidget(main_splitter)
 
     def _init_worker(self):
@@ -122,7 +159,7 @@ class MainWindow(QMainWindow):
         self.worker.sig_connected.connect(self._on_connection_changed)
         self.worker.sig_state_updated.connect(self._on_state_updated)
 
-        self.log_panel.append_log("GUI Base Station siap. Silakan pilih target koneksi dan tekan 'CONNECT ROV'.", "INFO")
+        self.log_panel.append_log("Cockpit GUI v2.0 siap. Dual Camera, QR Decoder, & Trajectory aktif.", "INFO")
 
     def _init_clock(self):
         self.clock_timer = QTimer(self)
@@ -132,24 +169,38 @@ class MainWindow(QMainWindow):
         self._update_clock()
 
     def _update_clock(self):
-        now_str = QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm:ss")
-        self.lbl_clock.setText(f"CLOCK: {now_str}")
+        dt = QDateTime.currentDateTime()
+        days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
+        months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
+        
+        day_name = days[dt.date().dayOfWeek() % 7]
+        month_name = months[dt.date().month() - 1]
+        
+        formatted = f"{day_name}, {dt.date().day():02d} {month_name} {dt.date().year()} | {dt.time().toString('HH:mm:ss')} WIB"
+        self.lbl_clock.setText(f"🕒 {formatted}")
 
     def _on_connection_changed(self, connected: bool):
         self.control_panel.set_connected_state(connected)
         self.video_panel.set_streaming_state(connected)
 
     def _on_state_updated(self, state):
-        # Update Telemetry Digital
+        # Update Telemetri & Altimeter Dasar Kolam
         self.telemetry_panel.update_telemetry(state)
         self.control_panel.set_armed_state(state.armed)
 
-        # Update Instruments HUD (Roll, Pitch, Yaw)
+        # Update HUD Instruments (Roll, Pitch, Yaw)
         self.attitude_indicator.set_attitude(state.roll, state.pitch)
         self.compass_indicator.set_yaw(state.yaw)
 
+        # Update Trajectory Path Tracker
+        self.trajectory_panel.update_trajectory(state)
+
+        # Update QR Code hasil pembacaan jika ada QR baru
+        if getattr(state, 'qr_last_code', ''):
+            self.qr_panel.update_qr_data(state.qr_last_code)
+
     def closeEvent(self, event):
-        """Clean up threads & MAVLink connection pada saat aplikasi ditutup."""
+        """Clean up threads & MAVLink connection saat aplikasi ditutup."""
         self.worker.disconnect_rov()
         if self.worker_thread.isRunning():
             self.worker_thread.quit()
