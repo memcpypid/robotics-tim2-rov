@@ -14,30 +14,12 @@ class TelemetryPanel(QWidget):
         self._init_ui()
 
     def _init_ui(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(6, 6, 6, 6)
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(12)
 
-        # 1. Groupbox Status Utama (Mode & Armed status)
-        status_group = QGroupBox("FLIGHT & ARM STATUS")
-        status_layout = QHBoxLayout(status_group)
-        status_layout.setContentsMargins(12, 18, 12, 12)
-        status_layout.setSpacing(10)
-
-        self.lbl_mode = QLabel("MANUAL")
-        self.lbl_mode.setAlignment(Qt.AlignCenter)
-        self.lbl_mode.setStyleSheet("background-color: #202d42; border: 1px solid #00e5ff; border-radius: 6px; font-size: 15px; font-weight: bold; padding: 6px; color: #00e5ff;")
-
-        self.lbl_armed = QLabel("DISARMED")
-        self.lbl_armed.setAlignment(Qt.AlignCenter)
-        self.lbl_armed.setStyleSheet("background-color: #2e1a1a; border: 1px solid #ff4d4d; border-radius: 6px; font-size: 15px; font-weight: bold; padding: 6px; color: #ff4d4d;")
-
-        status_layout.addWidget(self.lbl_mode)
-        status_layout.addWidget(self.lbl_armed)
-        main_layout.addWidget(status_group)
-
-        # 2. Groupbox Kedalaman & Ketinggian Dasar Kolam (Bottom Clearance)
-        depth_group = QGroupBox("DEPTH & BOTTOM CLEARANCE (ALTIMETER)")
+        # 1. Left column: depth_group
+        depth_group = QGroupBox("DEPTH & ALTIMETER")
         depth_layout = QVBoxLayout(depth_group)
         depth_layout.setContentsMargins(12, 18, 12, 12)
         depth_layout.setSpacing(10)
@@ -57,7 +39,7 @@ class TelemetryPanel(QWidget):
         row_alt.addStretch()
         self.lbl_alt_val = QLabel("0.00 m")
         self.lbl_alt_val.setObjectName("value_label")
-        self.lbl_alt_val.setStyleSheet("color: #40bf6a; font-weight: bold; font-size: 18px;")
+        self.lbl_alt_val.setStyleSheet("color: #40bf6a; font-weight: bold; font-size: 13px;")
         row_alt.addWidget(self.lbl_alt_val)
         depth_layout.addLayout(row_alt)
 
@@ -71,10 +53,14 @@ class TelemetryPanel(QWidget):
         """)
         depth_layout.addWidget(self.bar_alt)
 
-        main_layout.addWidget(depth_group)
+        main_layout.addWidget(depth_group, stretch=1)
 
-        # 3. Groupbox Baterai & Daya
-        power_group = QGroupBox("POWER & BATTERY STATUS")
+        # 2. Right column stacked: power_group & rpy_group
+        right_layout = QVBoxLayout()
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(12)
+
+        power_group = QGroupBox("BATTERY & POWER")
         power_layout = QVBoxLayout(power_group)
         power_layout.setContentsMargins(12, 18, 12, 12)
         power_layout.setSpacing(10)
@@ -93,10 +79,9 @@ class TelemetryPanel(QWidget):
         self.bar_battery.setFormat("Baterai: %p%")
         power_layout.addWidget(self.bar_battery)
 
-        main_layout.addWidget(power_group)
+        right_layout.addWidget(power_group)
 
-        # 4. Groupbox RPY Detail (Roll Pitch Yaw)
-        rpy_group = QGroupBox("ATTITUDE VECTOR (6-DOF)")
+        rpy_group = QGroupBox("ATTITUDE (6-DOF)")
         rpy_layout = QGridLayout(rpy_group)
         rpy_layout.setContentsMargins(12, 18, 12, 12)
         rpy_layout.setSpacing(10)
@@ -116,19 +101,11 @@ class TelemetryPanel(QWidget):
         self.lbl_yaw.setObjectName("value_label")
         rpy_layout.addWidget(self.lbl_yaw, 2, 1)
 
-        main_layout.addWidget(rpy_group)
+        right_layout.addWidget(rpy_group)
+        main_layout.addLayout(right_layout, stretch=1)
 
     def update_telemetry(self, state):
         """Memperbarui UI panel dengan data dari object ROVState."""
-        # Mode & Armed
-        self.lbl_mode.setText(str(state.mode).upper())
-        if state.armed:
-            self.lbl_armed.setText("ARMED")
-            self.lbl_armed.setStyleSheet("background-color: #1a2e1e; border: 1px solid #40bf6a; border-radius: 6px; font-size: 15px; font-weight: bold; padding: 6px; color: #40bf6a;")
-        else:
-            self.lbl_armed.setText("DISARMED")
-            self.lbl_armed.setStyleSheet("background-color: #2e1a1a; border: 1px solid #ff4d4d; border-radius: 6px; font-size: 15px; font-weight: bold; padding: 6px; color: #ff4d4d;")
-
         # Depth & Altitude (Dasar Kolam)
         self.lbl_depth_val.setText(f"{state.depth_m:.2f} m")
         self.lbl_alt_val.setText(f"{state.altitude_m:.2f} m")
@@ -137,13 +114,13 @@ class TelemetryPanel(QWidget):
         self.bar_alt.setValue(min(300, alt_cm))
         if 0 < state.altitude_m < 0.3:
             # Peringatan dekat dasar kolam
-            self.lbl_alt_val.setStyleSheet("color: #ff3b30; font-weight: bold; font-size: 18px;")
+            self.lbl_alt_val.setStyleSheet("color: #ff3b30; font-weight: bold; font-size: 13px;")
             self.bar_alt.setStyleSheet("""
                 QProgressBar { background-color: #2e1212; border: 1px solid #ff3b30; border-radius: 5px; text-align: center; color: #ffffff; font-size: 11px; }
                 QProgressBar::chunk { background-color: #ff3b30; border-radius: 4px; }
             """)
         else:
-            self.lbl_alt_val.setStyleSheet("color: #40bf6a; font-weight: bold; font-size: 18px;")
+            self.lbl_alt_val.setStyleSheet("color: #40bf6a; font-weight: bold; font-size: 13px;")
             self.bar_alt.setStyleSheet("""
                 QProgressBar { background-color: #121824; border: 1px solid #2d3e5c; border-radius: 5px; text-align: center; color: #ffffff; font-size: 11px; }
                 QProgressBar::chunk { background-color: #40bf6a; border-radius: 4px; }

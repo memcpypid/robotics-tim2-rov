@@ -24,6 +24,24 @@ class ControlPanel(QWidget):
         main_layout.setContentsMargins(6, 6, 6, 6)
         main_layout.setSpacing(12)
 
+        # 0. Groupbox Status Utama (Mode & Armed status)
+        status_group = QGroupBox("FLIGHT & ARM STATUS")
+        status_layout = QHBoxLayout(status_group)
+        status_layout.setContentsMargins(12, 18, 12, 12)
+        status_layout.setSpacing(10)
+
+        self.lbl_mode = QLabel("MANUAL")
+        self.lbl_mode.setAlignment(Qt.AlignCenter)
+        self.lbl_mode.setStyleSheet("background-color: #202d42; border: 1px solid #00e5ff; border-radius: 6px; font-size: 15px; font-weight: bold; padding: 6px; color: #00e5ff;")
+
+        self.lbl_armed = QLabel("DISARMED")
+        self.lbl_armed.setAlignment(Qt.AlignCenter)
+        self.lbl_armed.setStyleSheet("background-color: #2e1a1a; border: 1px solid #ff4d4d; border-radius: 6px; font-size: 15px; font-weight: bold; padding: 6px; color: #ff4d4d;")
+
+        status_layout.addWidget(self.lbl_mode)
+        status_layout.addWidget(self.lbl_armed)
+        main_layout.addWidget(status_group)
+
         # 1. Groupbox Koneksi LAN/WiFi Jetson Nano
         conn_group = QGroupBox("JETSON NANO LAN / WIFI CONNECTION")
         conn_layout = QVBoxLayout(conn_group)
@@ -169,5 +187,13 @@ class ControlPanel(QWidget):
         self.btn_arm.setChecked(armed)
         if armed:
             self.btn_arm.setText("⚡ ARMED (THRUSTERS LIVE) ⚡")
+            self.lbl_armed.setText("ARMED")
+            self.lbl_armed.setStyleSheet("background-color: #1a2e1e; border: 1px solid #40bf6a; border-radius: 6px; font-size: 15px; font-weight: bold; padding: 6px; color: #40bf6a;")
         else:
             self.btn_arm.setText("DISARMED (CLICK TO ARM)")
+            self.lbl_armed.setText("DISARMED")
+            self.lbl_armed.setStyleSheet("background-color: #2e1a1a; border: 1px solid #ff4d4d; border-radius: 6px; font-size: 15px; font-weight: bold; padding: 6px; color: #ff4d4d;")
+
+    def update_status(self, mode: str, armed: bool):
+        self.lbl_mode.setText(str(mode).upper())
+        self.set_armed_state(armed)

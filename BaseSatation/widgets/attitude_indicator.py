@@ -12,7 +12,7 @@ class AttitudeIndicator(QWidget):
         super().__init__(parent)
         self._roll = 0.0
         self._pitch = 0.0
-        self.setMinimumSize(180, 180)
+        self.setMinimumSize(140, 140)
 
     def set_attitude(self, roll: float, pitch: float):
         self._roll = roll
@@ -29,7 +29,7 @@ class AttitudeIndicator(QWidget):
         height = self.height()
         center_x = width / 2.0
         center_y = height / 2.0
-        radius = min(width, height) / 2.0 - 10
+        radius = min(width, height) / 2.0 - 18
 
         # 1. Horizon & Pitch Ladder
         painter.save()
@@ -78,12 +78,16 @@ class AttitudeIndicator(QWidget):
         painter.setBrush(Qt.NoBrush)
         painter.drawEllipse(QPointF(0, 0), radius, radius)
 
+        w1 = radius * 0.65
+        w2 = radius * 0.25
+        h_val = radius * 0.15
+
         symbol_pen = QPen(QColor("#ffcc00"), 3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
         painter.setPen(symbol_pen)
-        painter.drawLine(QPointF(-40, 0), QPointF(-15, 0))
-        painter.drawLine(QPointF(-15, 0), QPointF(-15, 8))
-        painter.drawLine(QPointF(15, 0), QPointF(40, 0))
-        painter.drawLine(QPointF(15, 0), QPointF(15, 8))
+        painter.drawLine(QPointF(-w1, 0), QPointF(-w2, 0))
+        painter.drawLine(QPointF(-w2, 0), QPointF(-w2, h_val))
+        painter.drawLine(QPointF(w2, 0), QPointF(w1, 0))
+        painter.drawLine(QPointF(w2, 0), QPointF(w2, h_val))
         painter.setBrush(QBrush(QColor("#ffcc00")))
         painter.drawEllipse(QPointF(0, 0), 3, 3)
 
@@ -91,5 +95,5 @@ class AttitudeIndicator(QWidget):
 
         # 3. Label info Roll & Pitch
         painter.setPen(QColor("#00e5ff"))
-        painter.setFont(QFont("Segoe UI", 9, QFont.Bold))
-        painter.drawText(QRectF(0, height - 26, width, 20), Qt.AlignCenter, f"R: {self._roll:.1f}° | P: {self._pitch:.1f}°")
+        painter.setFont(QFont("Segoe UI", 8, QFont.Bold))
+        painter.drawText(QRectF(0, height - 16, width, 15), Qt.AlignCenter, f"R: {self._roll:.1f}° | P: {self._pitch:.1f}°")

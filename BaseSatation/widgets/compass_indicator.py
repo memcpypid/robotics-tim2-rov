@@ -11,7 +11,7 @@ class CompassIndicator(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._yaw = 0.0  # Derajat (0 s/d 360)
-        self.setMinimumSize(180, 180)
+        self.setMinimumSize(140, 140)
 
     def set_yaw(self, yaw: float):
         # Normalisasi ke 0 - 360
@@ -28,7 +28,7 @@ class CompassIndicator(QWidget):
         height = self.height()
         center_x = width / 2.0
         center_y = height / 2.0
-        radius = min(width, height) / 2.0 - 14
+        radius = min(width, height) / 2.0 - 18
 
         painter.save()
         painter.translate(center_x, center_y)
@@ -87,5 +87,5 @@ class CompassIndicator(QWidget):
 
         # Label Teks Derajat Heading
         painter.setPen(QColor("#00e5ff"))
-        painter.setFont(QFont("Segoe UI", 10, QFont.Bold))
-        painter.drawText(QRectF(0, height - 26, width, 20), Qt.AlignCenter, f"HEADING: {self._yaw:.1f}°")
+        painter.setFont(QFont("Segoe UI", 8, QFont.Bold))
+        painter.drawText(QRectF(0, height - 16, width, 15), Qt.AlignCenter, f"HEADING: {self._yaw:.1f}°")

@@ -61,27 +61,19 @@ class MainWindow(QMainWindow):
         # === MAIN SPLITTER (LEFT / CENTER / RIGHT) ===
         main_splitter = QSplitter(Qt.Horizontal)
 
-        # 1. LEFT COLUMN: Kontrol & Telemetri (Termasuk Altimeter Dasar Kolam)
-        left_scroll = QScrollArea()
-        left_scroll.setWidgetResizable(True)
-        left_scroll.setFrameShape(QFrame.NoFrame)
-        left_scroll.setStyleSheet("background-color: transparent;")
-        
+        # 1. LEFT COLUMN: Kontrol & Status (Tanpa scroll area)
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.setSpacing(8)
+        left_layout.setSpacing(0)
         
         self.control_panel = ControlPanel()
-        self.telemetry_panel = TelemetryPanel()
-        
         left_layout.addWidget(self.control_panel)
-        left_layout.addWidget(self.telemetry_panel)
+        left_layout.addStretch()
         
-        left_scroll.setWidget(left_widget)
-        left_scroll.setMinimumWidth(340)
-        left_scroll.setMaximumWidth(420)
-        main_splitter.addWidget(left_scroll)
+        left_widget.setMinimumWidth(340)
+        left_widget.setMaximumWidth(420)
+        main_splitter.addWidget(left_widget)
 
         # 2. CENTER COLUMN: Multi-Tab Dashboard (Dual Camera, Trajectory Map, 3D Design)
         center_widget = QWidget()
@@ -91,7 +83,7 @@ class MainWindow(QMainWindow):
         self.center_tabs = QTabWidget()
         self.center_tabs.setTabPosition(QTabWidget.North)
 
-        # TAB 1: Dual Display Camera + HUD Instruments
+        # TAB 1: Dual Display Camera + HUD Instruments & Telemetry
         tab_cam_widget = QWidget()
         tab_cam_layout = QVBoxLayout(tab_cam_widget)
         tab_cam_layout.setContentsMargins(4, 8, 4, 4)
@@ -100,19 +92,36 @@ class MainWindow(QMainWindow):
         self.video_panel = VideoPanel()  # 2 Display Camera
         tab_cam_layout.addWidget(self.video_panel, stretch=3)
 
-        hud_group = QGroupBox("NAVIGATION INSTRUMENTS (6-DOF ATTITUDE & HEADING HUD)")
+        self.telemetry_panel = TelemetryPanel()
+
+        # HUD Group with constrained height
+        hud_group = QGroupBox("NAVIGATION HUD (6-DOF)")
         hud_layout = QHBoxLayout(hud_group)
+        hud_layout.setContentsMargins(8, 18, 8, 8)
+        hud_layout.setSpacing(20)
 
         self.attitude_indicator = AttitudeIndicator()
+        self.attitude_indicator.setMaximumSize(180, 180)
+
         self.compass_indicator = CompassIndicator()
+        self.compass_indicator.setMaximumSize(180, 180)
 
         hud_layout.addStretch()
         hud_layout.addWidget(self.attitude_indicator)
-        hud_layout.addSpacing(40)
         hud_layout.addWidget(self.compass_indicator)
         hud_layout.addStretch()
 
-        tab_cam_layout.addWidget(hud_group, stretch=2)
+        # Bottom dashboard as a widget with fixed max height
+        bottom_dashboard_widget = QWidget()
+        bottom_dashboard_widget.setMaximumHeight(230)
+        bottom_dashboard_layout = QHBoxLayout(bottom_dashboard_widget)
+        bottom_dashboard_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_dashboard_layout.setSpacing(10)
+
+        bottom_dashboard_layout.addWidget(hud_group, stretch=2)
+        bottom_dashboard_layout.addWidget(self.telemetry_panel, stretch=5)
+
+        tab_cam_layout.addWidget(bottom_dashboard_widget)
         self.center_tabs.addTab(tab_cam_widget, "🎥 2 CH CAMERA FEED & HUD")
 
         # TAB 2: Trajectory Tracker
@@ -211,7 +220,7 @@ class MainWindow(QMainWindow):
     def _on_state_updated(self, state):
         # Update Telemetri & Altimeter Dasar Kolam
         self.telemetry_panel.update_telemetry(state)
-        self.control_panel.set_armed_state(state.armed)
+        self.control_panel.update_status(state.mode, state.armed)
 
         # Update HUD Instruments (Roll, Pitch, Yaw)
         self.attitude_indicator.set_attitude(state.roll, state.pitch)
