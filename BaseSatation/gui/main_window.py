@@ -69,7 +69,6 @@ class MainWindow(QMainWindow):
         
         self.control_panel = ControlPanel()
         left_layout.addWidget(self.control_panel)
-        left_layout.addStretch()
         
         left_widget.setMinimumWidth(340)
         left_widget.setMaximumWidth(420)

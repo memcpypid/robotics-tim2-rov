@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSplitter,
-    QPushButton, QGroupBox
+    QPushButton, QGroupBox, QFrame
 )
 from PySide6.QtCore import Qt, QRectF, QPointF
 from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QFont, QPixmap
@@ -132,10 +132,15 @@ class VideoPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
 
-        # Control Bar Atas (Layout Switcher)
-        ctrl_layout = QHBoxLayout()
-        lbl_title = QLabel("🎥 DUAL ROV CAMERA CHANNELS (LIVE STREAM RECEIVER)")
-        lbl_title.setStyleSheet("font-size: 13px; font-weight: bold; color: #00e5ff;")
+        # Control Bar Atas (Layout Switcher) dibungkus dalam QFrame agar rapi
+        ctrl_frame = QFrame()
+        ctrl_frame.setStyleSheet("QFrame { background-color: #1a2332; border: 1px solid #28354d; border-radius: 6px; }")
+        ctrl_layout = QHBoxLayout(ctrl_frame)
+        ctrl_layout.setContentsMargins(10, 8, 10, 8)
+        ctrl_layout.setSpacing(10)
+
+        lbl_title = QLabel("🎥 DUAL ROV CAMERA CHANNELS")
+        lbl_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #00e5ff; border: none; background: transparent;")
         ctrl_layout.addWidget(lbl_title)
         ctrl_layout.addStretch()
 
@@ -144,14 +149,28 @@ class VideoPanel(QWidget):
         self.btn_cam2 = QPushButton("CAM 2 ONLY")
 
         for btn in [self.btn_split, self.btn_cam1, self.btn_cam2]:
-            btn.setStyleSheet("padding: 4px 12px; font-size: 11px;")
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #202d42;
+                    color: white;
+                    border: 1px solid #3d5070;
+                    border-radius: 4px;
+                    padding: 6px 16px;
+                    font-size: 11px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #2b3b55;
+                    border: 1px solid #00e5ff;
+                }
+            """)
             ctrl_layout.addWidget(btn)
 
         self.btn_split.clicked.connect(self._show_split)
         self.btn_cam1.clicked.connect(self._show_cam1)
         self.btn_cam2.clicked.connect(self._show_cam2)
 
-        layout.addLayout(ctrl_layout)
+        layout.addWidget(ctrl_frame)
 
         # Splitter untuk 2 kamera
         self.splitter = QSplitter(Qt.Horizontal)
