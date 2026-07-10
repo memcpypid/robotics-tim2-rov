@@ -25,23 +25,24 @@ class TelemetryPanel(QWidget):
         depth_layout.setSpacing(10)
 
         # Kedalaman dari Permukaan
-        row_depth = QHBoxLayout()
-        row_depth.addWidget(QLabel("Kedalaman Permukaan:"))
-        row_depth.addStretch()
+        box_depth = QVBoxLayout()
+        box_depth.addWidget(QLabel("Kedalaman Permukaan:"))
         self.lbl_depth_val = QLabel("0.00 m")
         self.lbl_depth_val.setObjectName("value_label")
-        row_depth.addWidget(self.lbl_depth_val)
-        depth_layout.addLayout(row_depth)
+        self.lbl_depth_val.setAlignment(Qt.AlignCenter)
+        self.lbl_depth_val.setStyleSheet("color: #00e5ff; font-weight: bold; font-size: 24px;")
+        box_depth.addWidget(self.lbl_depth_val)
+        depth_layout.addLayout(box_depth)
 
         # Ketinggian dari Dasar Kolam (Bottom Altimeter)
-        row_alt = QHBoxLayout()
-        row_alt.addWidget(QLabel("Tinggi dari Dasar Kolam:"))
-        row_alt.addStretch()
+        box_alt = QVBoxLayout()
+        box_alt.addWidget(QLabel("Tinggi dari Dasar Kolam:"))
         self.lbl_alt_val = QLabel("0.00 m")
         self.lbl_alt_val.setObjectName("value_label")
-        self.lbl_alt_val.setStyleSheet("color: #40bf6a; font-weight: bold; font-size: 13px;")
-        row_alt.addWidget(self.lbl_alt_val)
-        depth_layout.addLayout(row_alt)
+        self.lbl_alt_val.setAlignment(Qt.AlignCenter)
+        self.lbl_alt_val.setStyleSheet("color: #40bf6a; font-weight: bold; font-size: 24px;")
+        box_alt.addWidget(self.lbl_alt_val)
+        depth_layout.addLayout(box_alt)
 
         self.bar_alt = QProgressBar()
         self.bar_alt.setRange(0, 300)  # max 300 cm / 3 m clearance
@@ -114,13 +115,13 @@ class TelemetryPanel(QWidget):
         self.bar_alt.setValue(min(300, alt_cm))
         if 0 < state.altitude_m < 0.3:
             # Peringatan dekat dasar kolam
-            self.lbl_alt_val.setStyleSheet("color: #ff3b30; font-weight: bold; font-size: 13px;")
+            self.lbl_alt_val.setStyleSheet("color: #ff3b30; font-weight: bold; font-size: 24px;")
             self.bar_alt.setStyleSheet("""
                 QProgressBar { background-color: #2e1212; border: 1px solid #ff3b30; border-radius: 5px; text-align: center; color: #ffffff; font-size: 11px; }
                 QProgressBar::chunk { background-color: #ff3b30; border-radius: 4px; }
             """)
         else:
-            self.lbl_alt_val.setStyleSheet("color: #40bf6a; font-weight: bold; font-size: 13px;")
+            self.lbl_alt_val.setStyleSheet("color: #40bf6a; font-weight: bold; font-size: 24px;")
             self.bar_alt.setStyleSheet("""
                 QProgressBar { background-color: #121824; border: 1px solid #2d3e5c; border-radius: 5px; text-align: center; color: #ffffff; font-size: 11px; }
                 QProgressBar::chunk { background-color: #40bf6a; border-radius: 4px; }

@@ -39,7 +39,7 @@ class MainWindow(QMainWindow):
         # === TOP HEADER BAR ===
         header_layout = QHBoxLayout()
         
-        self.lbl_title = QLabel("🛸 BASE STATION ROV // COMMAND COCKPIT")
+        self.lbl_title = QLabel(" BASE STATION ROV // COMMAND COCKPIT")
         self.lbl_title.setObjectName("header_label")
         
         # Banner Nama TIM & Perguruan Tinggi
@@ -48,11 +48,11 @@ class MainWindow(QMainWindow):
         self.lbl_team.setToolTip("Bosku bisa mengedit/menyesuaikan nama tim & kampus ini.")
         
         # Waktu Lengkap (Hari, Tanggal Bulan Tahun | Jam:Menit:Detik)
-        self.lbl_clock = QLabel("🕒 WAKTU: Menghubungkan jam...")
+        self.lbl_clock = QLabel(" WAKTU: Menghubungkan jam...")
         self.lbl_clock.setStyleSheet("font-size: 13px; font-weight: bold; color: #00e5ff; background-color: #171f2e; padding: 6px 14px; border: 1px solid #28354d; border-radius: 5px;")
 
         header_layout.addWidget(self.lbl_title, alignment=Qt.AlignVCenter)
-        header_layout.addSpacing(15)
+        header_layout.addStretch()
         header_layout.addWidget(self.lbl_team, alignment=Qt.AlignVCenter)
         header_layout.addStretch()
         header_layout.addWidget(self.lbl_clock, alignment=Qt.AlignVCenter)
@@ -121,15 +121,15 @@ class MainWindow(QMainWindow):
         bottom_dashboard_layout.addWidget(self.telemetry_panel, stretch=5)
 
         tab_cam_layout.addWidget(bottom_dashboard_widget)
-        self.center_tabs.addTab(tab_cam_widget, "🎥 2 CH CAMERA FEED & HUD")
+        self.center_tabs.addTab(tab_cam_widget, " 2 CH CAMERA FEED & HUD")
 
         # TAB 2: Trajectory Tracker
         self.trajectory_panel = TrajectoryPanel()
-        self.center_tabs.addTab(self.trajectory_panel, "🗺️ TRAJECTORY TRACKER")
+        self.center_tabs.addTab(self.trajectory_panel, " TRAJECTORY TRACKER")
 
         # TAB 3: Gambar Design ROV (Nanti saja placeholder)
         self.design_panel = DesignROVPanel()
-        self.center_tabs.addTab(self.design_panel, "📐 GAMBAR DESIGN ROV (PLACEHOLDER)")
+        self.center_tabs.addTab(self.design_panel, " GAMBAR DESIGN ROV (PLACEHOLDER)")
 
         center_layout.addWidget(self.center_tabs)
         main_splitter.addWidget(center_widget)
@@ -210,7 +210,7 @@ class MainWindow(QMainWindow):
         month_name = months[dt.date().month() - 1]
         
         formatted = f"{day_name}, {dt.date().day():02d} {month_name} {dt.date().year()} | {dt.time().toString('HH:mm:ss')} WIB"
-        self.lbl_clock.setText(f"🕒 {formatted}")
+        self.lbl_clock.setText(f" {formatted}")
 
     def _on_connection_changed(self, connected: bool):
         self.control_panel.set_connected_state(connected)

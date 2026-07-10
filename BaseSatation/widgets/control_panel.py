@@ -117,7 +117,7 @@ class ControlPanel(QWidget):
         joy_layout.setContentsMargins(12, 18, 12, 12)
         joy_layout.setSpacing(8)
 
-        self.lbl_joystick_status = QLabel("🎮 Status: Tidak Ada Joystick USB Tercolok")
+        self.lbl_joystick_status = QLabel(" Status: Tidak Ada Joystick USB Tercolok")
         self.lbl_joystick_status.setStyleSheet("font-size: 11px; color: #899cb8; font-weight: bold;")
         joy_layout.addWidget(self.lbl_joystick_status)
 
@@ -136,11 +136,11 @@ class ControlPanel(QWidget):
 
     def set_joystick_status(self, connected: bool, device_name: str):
         if connected:
-            self.lbl_joystick_status.setText(f"🎮 Aktif: {device_name}")
+            self.lbl_joystick_status.setText(f" Aktif: {device_name}")
             self.lbl_joystick_status.setStyleSheet("font-size: 11px; color: #40bf6a; font-weight: bold;")
             self.btn_joystick_toggle.setEnabled(True)
         else:
-            self.lbl_joystick_status.setText("🎮 Status: Tidak Ada Joystick USB Tercolok")
+            self.lbl_joystick_status.setText(" Status: Tidak Ada Joystick USB Tercolok")
             self.lbl_joystick_status.setStyleSheet("font-size: 11px; color: #e55039; font-weight: bold;")
             self.lbl_joystick_axes.setText("Kendali Live: X: 0 | Y: 0 | Z: 500 (Hover) | R: 0")
 
@@ -186,7 +186,7 @@ class ControlPanel(QWidget):
     def set_armed_state(self, armed: bool):
         self.btn_arm.setChecked(armed)
         if armed:
-            self.btn_arm.setText("⚡ ARMED (THRUSTERS LIVE) ⚡")
+            self.btn_arm.setText(" ARMED (THRUSTERS LIVE) ")
             self.lbl_armed.setText("ARMED")
             self.lbl_armed.setStyleSheet("background-color: #1a2e1e; border: 1px solid #40bf6a; border-radius: 6px; font-size: 15px; font-weight: bold; padding: 6px; color: #40bf6a;")
         else:

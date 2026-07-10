@@ -94,29 +94,30 @@ class CameraCanvas(QWidget):
             painter.drawLine(center_x, center_y - 50, center_x, center_y + 50)
 
         # 4. Header Bar Overlay di atas video
-        painter.fillRect(0, 0, width, 26, QColor(15, 20, 29, 210))
-        painter.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        painter.setFont(QFont("Consolas", 7))
+        painter.setPen(corner_color)
+        
+        header_rect = QRectF(0, 15, width, 30)
         
         if self._is_streaming:
-            painter.setBrush(QBrush(QColor("#ff2a2a")))
-            painter.setPen(Qt.NoPen)
-            painter.drawEllipse(QPointF(16, 13), 5, 5)
-            painter.setPen(QColor("#ffffff"))
-            painter.drawText(28, 17, f"{self.cam_title} [LIVE STREAM ACTIVE]")
+            text = f"{self.cam_title}\n[LIVE STREAM ACTIVE]"
         else:
-            painter.setBrush(QBrush(QColor("#52637a")))
-            painter.setPen(Qt.NoPen)
-            painter.drawEllipse(QPointF(16, 13), 5, 5)
-            painter.setPen(QColor("#899cb8"))
-            painter.drawText(28, 17, f"{self.cam_title} [STANDBY / AWAITING UDP STREAM]")
+            text = f"{self.cam_title}\n[STANDBY / AWAITING UDP STREAM]"
+            
+        painter.drawText(header_rect, Qt.AlignHCenter | Qt.AlignTop, text)
 
         # 5. Footer Bar Overlay
-        painter.setFont(QFont("Consolas", 9))
+        painter.setFont(QFont("Consolas", 7))
         painter.setPen(corner_color)
+        
+        footer_rect = QRectF(0, height - 40, width, 30)
+        
         if self.cam_type == "FRONT":
-            painter.drawText(12, height - 10, "ZOOM: 1.0x | IR: AUTO | TILT: 0° | STREAM: UDP PORT 9002")
+            text = "ZOOM: 1.0x | IR: AUTO | TILT: 0°\nSTREAM: UDP PORT 9002"
         else:
-            painter.drawText(12, height - 10, "ZOOM: 1.0x | SCANNER: ACTIVE | LIGHT: ON | STREAM: UDP PORT 9003")
+            text = "ZOOM: 1.0x | SCANNER: ACTIVE | LIGHT: ON\nSTREAM: UDP PORT 9003"
+            
+        painter.drawText(footer_rect, Qt.AlignHCenter | Qt.AlignBottom, text)
 
 
 class VideoPanel(QWidget):
@@ -139,7 +140,7 @@ class VideoPanel(QWidget):
         ctrl_layout.setContentsMargins(10, 8, 10, 8)
         ctrl_layout.setSpacing(10)
 
-        lbl_title = QLabel("🎥 DUAL ROV CAMERA CHANNELS")
+        lbl_title = QLabel(" DUAL ROV CAMERA CHANNELS")
         lbl_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #00e5ff; border: none; background: transparent;")
         ctrl_layout.addWidget(lbl_title)
         ctrl_layout.addStretch()

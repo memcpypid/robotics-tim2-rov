@@ -174,11 +174,10 @@ QLabel#header_label {
 QLabel#header_team {
     font-size: 14px;
     font-weight: bold;
-    color: #ffcc00;
-    background-color: #222014;
+    color: #00e5ff;
+    background-color: transparent;
     padding: 4px 14px;
-    border: 1px solid #665200;
-    border-radius: 5px;
+    border: none;
 }
 QLabel#value_label {
     font-size: 15px;
