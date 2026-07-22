@@ -133,7 +133,7 @@ class LANClientWorker(QObject):
 
     def set_armed(self, arm: bool):
         cmd = "ARM" if arm else "DISARM"
-        self.send_command({"cmd": cmd, "force": False})
+        self.send_command({"cmd": cmd, "force": True})
 
     def set_mode(self, mode_name: str):
         self.send_command({"cmd": "SET_MODE", "mode": mode_name})

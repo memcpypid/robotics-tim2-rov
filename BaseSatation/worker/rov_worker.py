@@ -5,13 +5,18 @@ from PySide6.QtCore import QObject, Signal, QTimer
 # Tambahkan path root agar bisa mengimpor flightcontrolRov
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
+flightcontrol_dir = os.path.join(project_root, "flightcontrolRov")
+
 if project_root not in sys.path:
     sys.path.append(project_root)
+if flightcontrol_dir not in sys.path:
+    sys.path.append(flightcontrol_dir)
 
 try:
     from flightcontrolRov.main import ROVController
 except ImportError as e:
     ROVController = None
+    print(f"DEBUG IMPORT ERROR: {e}")
 
 from .lan_client import LANClientWorker
 
@@ -40,9 +45,12 @@ class ROVWorker(QObject):
 
     def connect_rov(self, connection_str: str, baudrate: int):
         # 1. Mode LAN / WiFi (IP Address langsung, contoh: 192.168.2.2 atau lan:192.168.2.2)
-        # Jika bukan prefix udp: / dev/, maka dianggap sebagai alamat IP Jetson Nano (LAN/WiFi UDP)
-        if connection_str.lower().startswith("lan:") or not (connection_str.lower().startswith("udp:") or connection_str.startswith("/dev/")):
-            if connection_str.lower().startswith("lan:"):
+        # Jika bukan prefix udp: / dev/ / com, maka dianggap sebagai alamat IP Jetson Nano (LAN/WiFi UDP)
+        conn_lower = connection_str.lower()
+        is_direct = conn_lower.startswith("udp:") or conn_lower.startswith("/dev/") or conn_lower.startswith("com")
+        
+        if conn_lower.startswith("lan:") or not is_direct:
+            if conn_lower.startswith("lan:"):
                 raw_ip = connection_str.split(":", 1)[1].split(" ")[0].strip()
             else:
                 raw_ip = connection_str.split(" ")[0].strip()
@@ -58,7 +66,9 @@ class ROVWorker(QObject):
             self.lan_client.connect_lan(rov_ip=raw_ip, telemetry_port=9000, command_port=9001)
             return
 
-        # 2. Jika memilih mode Direct MAVLink lokal (contoh: udp:127.0.0.1:14550 atau /dev/ttyACM0)
+        # 2. Jika memilih mode Direct MAVLink lokal (contoh: udp:127.0.0.1:14550 atau /dev/ttyACM0 atau COM3)
+        if baudrate == 0:
+            baudrate = 115200  # Default MAVLink baudrate untuk koneksi USB/Serial Pixhawk
         if ROVController is None:
             self.sig_log.emit("Gagal mengimpor ROVController dari flightcontrolRov! Pastikan struktur folder benar.", "ERROR")
             self.sig_connected.emit(False)
@@ -102,7 +112,7 @@ class ROVWorker(QObject):
         
         try:
             if arm:
-                success = self.rov.arm()
+                success = self.rov.arm(force=True)
                 if success:
                     self.sig_log.emit("Perintah ARM berhasil dikirim ke ROV.", "SUCCESS")
                 else:
