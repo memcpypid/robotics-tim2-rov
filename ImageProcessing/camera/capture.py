@@ -90,9 +90,11 @@ class CameraThread:
         # Konversi ke integer jika device berupa digit string ('0' -> 0)
         source_val = int(self.config.device) if isinstance(self.config.device, str) and self.config.device.isdigit() else self.config.device
 
-        # 1. Selalu buka kamera dengan cv2.CAP_V4L2 (Jangan gunakan CAP_ANY)
+        import sys
+        # 1. Buka kamera dengan backend sesuai OS (CAP_V4L2 di Linux, CAP_ANY di OS lain seperti Windows)
         try:
-            self.cap = cv2.VideoCapture(source_val, cv2.CAP_V4L2)
+            backend = cv2.CAP_V4L2 if sys.platform.startswith('linux') else cv2.CAP_ANY
+            self.cap = cv2.VideoCapture(source_val, backend)
         except Exception as e:
             print(f"[{self.cam_name} ERROR] Exception saat membuka device {self.config.device}: {e}")
             self.is_connected = False

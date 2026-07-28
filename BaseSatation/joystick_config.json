@@ -1,0 +1,39 @@
+{
+    "axes": {
+        "strafe_y": {
+            "axis": 0,
+            "invert": false,
+            "deadzone": 0.08,
+            "scale": 1.0
+        },
+        "forward_x": {
+            "axis": 1,
+            "invert": false,
+            "deadzone": 0.08,
+            "scale": 1.0
+        },
+        "yaw_r": {
+            "axis": 3,
+            "invert": false,
+            "deadzone": 0.08,
+            "scale": 1.0
+        },
+        "depth_z": {
+            "axis": 4,
+            "invert": true,
+            "deadzone": 0.08,
+            "scale": 1.0
+        }
+    },
+    "buttons": {
+        "arm": 7,
+        "disarm": 6,
+        "depth_up": 5,
+        "depth_down": 4,
+        "mode_manual": -1,
+        "mode_stabilize": -1,
+        "mode_depth_hold": -1,
+        "lights_toggle": -1
+    },
+    "hat_depth": true
+}

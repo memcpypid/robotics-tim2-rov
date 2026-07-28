@@ -53,14 +53,15 @@ class ControlPanel(QWidget):
         
         self.combo_target = QComboBox()
         self.combo_target.addItems([
-            "192.168.2.2",
+            "127.0.0.1",         # Localhost (Pixhawk via USB langsung di laptop yang sama)
+            "192.168.2.2",       # BlueROV default (via Ethernet)
             "192.168.1.100",
             "192.168.43.149",
-            "127.0.0.1",
             "10.0.0.2"
         ])
         self.combo_target.setEditable(True)
-        self.combo_target.setToolTip("Ketik manual alamat IP Jetson Nano (LAN/WiFi) lalu klik CONNECT")
+        self.combo_target.setToolTip("Ketik manual alamat IP ROV Backend / Jetson Nano (LAN/WiFi) lalu klik CONNECT\n"
+                                      "Gunakan 127.0.0.1 jika ROV Backend berjalan di laptop yang sama.")
         row1.addWidget(self.combo_target, stretch=1)
         conn_layout.addLayout(row1)
 

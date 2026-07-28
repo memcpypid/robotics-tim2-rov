@@ -7,6 +7,7 @@ from .log_panel import LogPanel
 from .qr_panel import QRPanel
 from .trajectory_panel import TrajectoryPanel
 from .design_panel import DesignROVPanel
+from .motor_panel import MotorPanel
 
 __all__ = [
     "AttitudeIndicator",
@@ -17,5 +18,6 @@ __all__ = [
     "LogPanel",
     "QRPanel",
     "TrajectoryPanel",
-    "DesignROVPanel"
+    "DesignROVPanel",
+    "MotorPanel"
 ]

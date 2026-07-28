@@ -12,10 +12,40 @@ project_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
+from dataclasses import dataclass, field
+
 try:
     from flightcontrolRov.models.state import ROVState
 except ImportError:
-    ROVState = None
+    try:
+        from models.state import ROVState
+    except ImportError:
+        @dataclass
+        class ROVState:
+            connected: bool = False
+            armed: bool = False
+            mode: str = "UNKNOWN"
+            system_id: int = 0
+            component_id: int = 0
+            roll: float = 0.0
+            pitch: float = 0.0
+            yaw: float = 0.0
+            depth_m: float = 0.0
+            altitude_m: float = 0.0
+            pressure_press_abs: float = 0.0
+            water_temperature_c: float = 0.0
+            pos_x: float = 0.0
+            pos_y: float = 0.0
+            pos_z: float = 0.0
+            battery_voltage: float = 0.0
+            battery_current: float = 0.0
+            battery_percent: int = 0
+            leak_detected: bool = False
+            qr_last_code: str = ""
+            qr_last_time: float = 0.0
+            qr_last_cam: str = ""
+            qr_last_image: str = ""
+            pwm_outputs: list = field(default_factory=list)
 
 
 class LANClientWorker(QObject):
@@ -37,8 +67,14 @@ class LANClientWorker(QObject):
         self._cmd_sock: Optional[socket.socket] = None
         
         self._running = False
+        self._lan_connected = False   # True hanya setelah connect_lan() berhasil dipanggil
         self._listen_thread: Optional[threading.Thread] = None
         self._last_packet_time = 0.0
+
+    @property
+    def is_lan_connected(self) -> bool:
+        """True jika user sudah memanggil connect_lan() ke IP tertentu."""
+        return self._lan_connected
 
     def start_receiver(self, telemetry_port: int = 9000):
         """Membuka socket UDP di port 9000 secara otomatis saat aplikasi berjalan untuk menerima QR & telemetri."""
@@ -47,7 +83,8 @@ class LANClientWorker(QObject):
         self.telemetry_port = telemetry_port
         try:
             self._telemetry_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self._telemetry_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            # Jangan gunakan SO_REUSEADDR agar jika ada zombie process yang memakai port 9000,
+            # Windows langsung memberi tahu error 10048 (Address in use) bukannya membuang paket.
             self._telemetry_sock.bind(("0.0.0.0", self.telemetry_port))
             self._telemetry_sock.settimeout(1.0)
 
@@ -56,6 +93,10 @@ class LANClientWorker(QObject):
             self._listen_thread = threading.Thread(target=self._listen_telemetry_loop, name="LANClientListenLoop", daemon=True)
             self._listen_thread.start()
             self.sig_log.emit(f"[LAN Client] Auto-listening telemetri & QR live di port UDP {self.telemetry_port}", "INFO")
+        except OSError as e:
+            msg = f"[LAN Client ERROR] Port UDP {self.telemetry_port} gagal dibuka! Pastikan tidak ada aplikasi Python lain yang berjalan. Error: {e}"
+            print(msg)
+            self.sig_log.emit(msg, "ERROR")
         except Exception as e:
             self.sig_log.emit(f"[LAN Client ERROR] Gagal bind port UDP {self.telemetry_port}: {e}", "ERROR")
 
@@ -86,11 +127,13 @@ class LANClientWorker(QObject):
                 self._heartbeat_thread = threading.Thread(target=self._heartbeat_loop, name="LANHeartbeatLoop", daemon=True)
                 self._heartbeat_thread.start()
 
+            self._lan_connected = True
             self.sig_connected.emit(True)
             self.sig_log.emit(f"[LAN Client] Berhasil tersambung ke LAN Bridge & Camera Stream di {self.rov_ip}!", "SUCCESS")
 
         except Exception as e:
             self.sig_log.emit(f"[LAN Client ERROR] Gagal menghubungkan LAN: {e}", "ERROR")
+            self._lan_connected = False
             self.sig_connected.emit(False)
 
     def _heartbeat_loop(self):
@@ -106,6 +149,7 @@ class LANClientWorker(QObject):
 
     def disconnect_lan(self):
         self._running = False
+        self._lan_connected = False
         if self._telemetry_sock:
             try:
                 self._telemetry_sock.close()
@@ -141,30 +185,41 @@ class LANClientWorker(QObject):
     def send_manual_control(self, x: int, y: int, z: int, r: int, buttons: int = 0):
         self.send_command({"cmd": "MOVE", "x": x, "y": y, "z": z, "r": r, "buttons": buttons})
 
+    def send_motor_test(self, channel: int, thrust: float):
+        self.send_command({"cmd": "MOTOR_TEST", "channel": channel, "thrust": thrust * 100.0})
+
+    def send_set_servo(self, pin: int, pwm: int):
+        self.send_command({"cmd": "SET_SERVO", "pin": pin, "pwm": pwm})
+
     def _listen_telemetry_loop(self):
-        """Mendengarkan paket telemetri JSON dari Jetson Nano."""
+        """Mendengarkan paket telemetri JSON dari Jetson Nano / ROV Backend."""
+        if not self._telemetry_sock:
+            print("[LANClient DEBUG ERROR] _telemetry_sock is None!")
+            return
+        print(f"[LANClient DEBUG] _listen_telemetry_loop BERJALAN di port UDP {self.telemetry_port}...")
+        self._telemetry_sock.settimeout(0.5)
+        last_debug = 0
         while self._running:
             try:
                 data, addr = self._telemetry_sock.recvfrom(65535)
-                packet = json.loads(data.decode("utf-8"))
-                if packet.get("type") == "TELEMETRY" and "data" in packet:
-                    self._last_packet_time = time.time()
-                    state_dict = packet["data"]
-                    if ROVState:
+                if data:
+                    packet = json.loads(data.decode("utf-8"))
+                    if packet.get("type") == "TELEMETRY" and "data" in packet:
+                        self._last_packet_time = time.time()
+                        state_dict = packet["data"]
                         state_obj = ROVState()
                         for k, v in state_dict.items():
                             if hasattr(state_obj, k):
                                 setattr(state_obj, k, v)
                         self.sig_state_updated.emit(state_obj)
-            except socket.timeout:
-                # Cek jika tidak ada paket masuk selama > 3 detik
-                if self._last_packet_time > 0 and (time.time() - self._last_packet_time > 3.0):
-                    self.sig_log.emit("[LAN Client WARNING] Telemetri terputus (Timeout > 3s)!", "WARN")
-                    self._last_packet_time = 0.0
-            except json.JSONDecodeError:
-                pass
-            except OSError:
-                break
+                        
+                        if time.time() - last_debug > 2.0:
+                            last_debug = time.time()
+                            print(f"[LANClient DEBUG] Telemetri DITERIMA dari {addr} | R:{state_obj.roll:.1f}° P:{state_obj.pitch:.1f}° Y:{state_obj.yaw:.1f}°")
+            except (socket.timeout, BlockingIOError):
+                continue
             except Exception as e:
-                if self._running:
-                    print(f"[LANClient Error] {e}")
+                if not self._running:
+                    break
+                print(f"[LANClient DEBUG ERROR] Exception in loop: {e}")
+                time.sleep(0.05)

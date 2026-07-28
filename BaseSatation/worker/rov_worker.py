@@ -102,7 +102,7 @@ class ROVWorker(QObject):
         self.sig_connected.emit(False)
 
     def set_armed(self, arm: bool):
-        if self.lan_client and self.lan_client._running:
+        if self.lan_client and self.lan_client.is_lan_connected:
             self.lan_client.set_armed(arm)
             return
 
@@ -127,7 +127,7 @@ class ROVWorker(QObject):
             self.sig_log.emit(f"Error saat eksekusi Arm/Disarm: {str(e)}", "ERROR")
 
     def set_mode(self, mode_name: str):
-        if self.lan_client and self.lan_client._running:
+        if self.lan_client and self.lan_client.is_lan_connected:
             self.lan_client.set_mode(mode_name)
             return
 
@@ -145,13 +145,28 @@ class ROVWorker(QObject):
             self.sig_log.emit(f"Error saat mengubah mode: {str(e)}", "ERROR")
 
     def send_manual_control(self, x: int, y: int, z: int, r: int, buttons: int = 0):
-        if self.lan_client and self.lan_client._running:
+        if self.lan_client and self.lan_client.is_lan_connected:
             self.lan_client.send_manual_control(x, y, z, r, buttons)
             return
 
         if self.rov and self.rov.is_connected():
             try:
                 self.rov.move(x, y, z, r, buttons)
+            except Exception:
+                pass
+
+    def send_motor_test(self, channel: int, thrust: float):
+        if self.lan_client and self.lan_client.is_lan_connected:
+            self.lan_client.send_motor_test(channel, thrust)
+
+    def send_set_servo(self, pin: int, pwm: int):
+        if self.lan_client and self.lan_client.is_lan_connected:
+            self.lan_client.send_set_servo(pin, pwm)
+            return
+
+        if self.rov and self.rov.is_connected():
+            try:
+                self.rov.set_servo(pin, pwm)
             except Exception:
                 pass
 

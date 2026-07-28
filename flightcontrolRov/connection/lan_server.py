@@ -18,17 +18,18 @@ class ROVLANServer:
     2. Command Receiver (Port 9001): Menerima perintah kontrol (ARM, DISARM, SET_MODE, MOVE)
        dari GUI Base Station dalam format JSON dan mengeksekusinya di ROVController.
     """
-    def __init__(self, rov_controller, client_ip: Optional[str] = "AUTO", telemetry_port: int = 9000, command_port: int = 9001):
+    def __init__(self, rov_controller, client_ip: str = "127.0.0.1", telemetry_port: int = 9000, command_port: int = 9001):
         self.rov = rov_controller
-        self.client_ip = "AUTO" if not client_ip or client_ip.upper() == "AUTO" else client_ip
+        # Selalu gunakan IP langsung (direct unicast), BUKAN broadcast
+        self.client_ip = client_ip if client_ip and client_ip.upper() != "AUTO" else "127.0.0.1"
         self.telemetry_port = telemetry_port
         self.command_port = command_port
 
         self.state_mgr = StateManager.get_instance()
         
-        # Sockets
+        # Socket UDP standar (unicast langsung ke IP tujuan, bukan broadcast)
         self._telemetry_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._telemetry_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        self._telemetry_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         
         self._cmd_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._cmd_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -44,10 +45,7 @@ class ROVLANServer:
             
         self._running = True
         print(f"[LANServer] Memulai layanan LAN Bridge...")
-        if self.client_ip == "AUTO":
-            print(f"[LANServer] Telemetry Stream -> [AUTO-DISCOVERY] Menunggu paket PING/koneksi pertama dari Base Station...")
-        else:
-            print(f"[LANServer] Telemetry Stream -> {self.client_ip}:{self.telemetry_port} (20 Hz)")
+        print(f"[LANServer] Telemetry Stream -> {self.client_ip}:{self.telemetry_port} (20 Hz, Direct UDP)")
         print(f"[LANServer] Command Listener binding pada port {self.command_port}")
 
         # Bind Command Socket
@@ -87,10 +85,11 @@ class ROVLANServer:
             print(f"[LANServer AUTO-DISCOVERY] IP Base Station terdeteksi! Mengalihkan stream telemetri ke: {ip}:{self.telemetry_port}")
 
     def _telemetry_loop(self):
-        """Loop pengirim telemetri 20Hz (setiap 50ms)."""
+        """Loop pengirim telemetri 20Hz ke IP Base Station secara langsung (direct unicast)."""
+        last_debug = 0
         while self._running:
             try:
-                if self.client_ip != "AUTO" and self.client_ip is not None:
+                if self.client_ip and self.client_ip.upper() != "AUTO":
                     state_dict = self.state_mgr.to_dict()
                     packet = {
                         "type": "TELEMETRY",
@@ -99,8 +98,15 @@ class ROVLANServer:
                     }
                     payload = json.dumps(packet).encode("utf-8")
                     self._telemetry_sock.sendto(payload, (self.client_ip, self.telemetry_port))
+                    
+                    # Print debug setiap 2 detik
+                    if time.time() - last_debug > 2.0:
+                        last_debug = time.time()
+                        print(f"[LANServer DEBUG] Mengirim telemetri ke {self.client_ip}:{self.telemetry_port} | R: {state_dict.get('roll', 0):.1f}° P: {state_dict.get('pitch', 0):.1f}° Y: {state_dict.get('yaw', 0):.1f}°")
             except Exception as e:
-                pass
+                if time.time() - last_debug > 2.0:
+                    last_debug = time.time()
+                    print(f"[LANServer ERROR] Gagal mengirim telemetri UDP ke {self.client_ip}:{self.telemetry_port}: {e}")
             
             time.sleep(0.05)  # 20 Hz
 
@@ -160,8 +166,34 @@ class ROVLANServer:
                 z = int(cmd_json.get("z", 500))
                 r = int(cmd_json.get("r", 0))
                 buttons = int(cmd_json.get("buttons", 0))
+                
                 success = self.rov.move(x, y, z, r, buttons)
                 return {"status": "OK" if success else "ERROR", "cmd": "MOVE", "success": success}
+
+            elif cmd == "DIVE":
+                # Menyelam atau naik.
+                # depth_rate: -1000 = naik penuh, 0 = hover, +1000 = turun/menyelam penuh
+                depth_rate = int(cmd_json.get("depth_rate", 0))
+                success = self.rov.dive(depth_rate)
+                return {"status": "OK" if success else "ERROR", "cmd": "DIVE",
+                        "depth_rate": depth_rate, "success": success}
+
+            elif cmd == "STOP":
+                # Hentikan semua gerak (hover di tempat)
+                success = self.rov.stop()
+                return {"status": "OK" if success else "ERROR", "cmd": "STOP", "success": success}
+
+            elif cmd == "MOTOR_TEST":
+                channel = int(cmd_json.get("channel", 0))
+                thrust = float(cmd_json.get("thrust", 0.0))
+                success = False
+                return {"status": "OK" if success else "ERROR", "cmd": "MOTOR_TEST", "success": success}
+
+            elif cmd == "SET_SERVO":
+                pin = int(cmd_json.get("pin", 9))
+                pwm = int(cmd_json.get("pwm", 1500))
+                success = self.rov.set_servo(pin, pwm)
+                return {"status": "OK" if success else "ERROR", "cmd": "SET_SERVO", "pin": pin, "pwm": pwm, "success": success}
 
             else:
                 return {"status": "ERROR", "message": f"Perintah tidak dikenali: {cmd}"}

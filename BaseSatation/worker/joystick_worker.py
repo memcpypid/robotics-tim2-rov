@@ -1,5 +1,7 @@
-import time
-from typing import Optional
+import json
+import os
+from typing import Optional, Any, Dict
+
 from PySide6.QtCore import QObject, Signal, QTimer
 
 try:
@@ -9,183 +11,262 @@ except ImportError:
     PYGAME_AVAILABLE = False
 
 
+CONFIG_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "joystick_config.json")
+)
+SERVO_CONFIG_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "servo_config.json")
+)
+
+
 class JoystickWorker(QObject):
     """
-    Background Worker untuk mendeteksi dan membaca input dari USB Joystick / Gamepad
-    (Logitech, Xbox, PlayStation, USB Controller) menggunakan Pygame.
-    
-    Pemetaan Kendali ROV (6-DOF):
-    - Left Stick Vertical   : Maju / Mundur (x: -1000 s/d 1000)
-    - Left Stick Horizontal : Geser Kiri / Kanan (y: -1000 s/d 1000)
-    - Right Stick Horizontal: Putar Yaw Kiri / Kanan (r: -1000 s/d 1000)
-    - Right Stick Vertical / D-Pad Up-Down / R1-L1: Naik / Turun Kedalaman (z: 0 s/d 1000, 500 netral)
+    Background Worker untuk mendeteksi dan membaca input dari USB Joystick.
+    Seluruh pemetaan axis dan tombol dibaca dari joystick_config.json.
     """
-    sig_joystick_status = Signal(bool, str)          # (is_connected, device_name)
-    sig_manual_control = Signal(int, int, int, int, int) # (x, y, z, r, buttons)
-    sig_log = Signal(str, str)                       # (message, level)
-    sig_arm_toggled = Signal()                       # Tombol khusus untuk Arm
-    sig_disarm_toggled = Signal()                    # Tombol khusus untuk Disarm
+    sig_joystick_status  = Signal(bool, str)
+    sig_manual_control   = Signal(int, int, int, int, int)
+    sig_log              = Signal(str, str)
+    sig_arm_toggled      = Signal()
+    sig_disarm_toggled   = Signal()
+    sig_set_servo        = Signal(int, int)
+    sig_mode_changed     = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._connected = False
         self._joystick: Optional[Any] = None
         self._timer = QTimer(self)
-        self._timer.setInterval(50)  # Polling 20 Hz
+        self._timer.setInterval(50)
         self._timer.timeout.connect(self._poll_joystick)
-        
-        self._last_log_time = 0.0
-        self._prev_buttons = []
+
+        self._prev_buttons: list = []
         self._enabled = True
 
-    def start(self):
-        """Memulai pemantauan input USB Joystick."""
-        if not PYGAME_AVAILABLE:
-            self.sig_log.emit("[USB Joystick WARNING] Modul pygame tidak ditemukan. Fitur joystick USB nonaktif.", "WARN")
-            return
+        self._axes_map: Dict[str, dict] = {}
+        self._buttons_map: Dict[str, int] = {}
+        self._hat_depth = True
 
+        self.servo_config: list = []
+        self.servo_states: dict = {}
+
+        self.reload_joystick_config()
+        self.reload_servo_config()
+
+    # ──────────────────────────────────────────
+    # Config Reload
+    # ──────────────────────────────────────────
+    def reload_joystick_config(self, config_dict: dict = None):
+        """Load konfigurasi joystick dari file JSON atau dict langsung (dari GUI Mapper)."""
+        if config_dict is not None:
+            data = config_dict
+        else:
+            try:
+                if os.path.exists(CONFIG_PATH):
+                    with open(CONFIG_PATH, "r") as f:
+                        data = json.load(f)
+                else:
+                    data = {}
+            except Exception:
+                data = {}
+
+        self._axes_map    = data.get("axes", {})
+        self._buttons_map = data.get("buttons", {})
+        self._hat_depth   = data.get("hat_depth", True)
+
+    def reload_servo_config(self):
+        """Load konfigurasi servo dari servo_config.json."""
         try:
-            pygame.init()
-            pygame.joystick.init()
+            if os.path.exists(SERVO_CONFIG_PATH):
+                with open(SERVO_CONFIG_PATH, "r") as f:
+                    data = json.load(f)
+                    self.servo_config = data.get("servos", [])
+                    for s in self.servo_config:
+                        pin = s["pin"]
+                        if pin not in self.servo_states:
+                            self.servo_states[pin] = s.get("trim_pwm", 1500)
+        except Exception:
+            pass
+
+    # ──────────────────────────────────────────
+    # Start / Stop
+    # ──────────────────────────────────────────
+    def start(self):
+        if not PYGAME_AVAILABLE:
+            self.sig_log.emit("[Joystick] pygame tidak ditemukan — fitur joystick nonaktif.", "WARN")
+            return
+        try:
+            if not pygame.get_init():
+                pygame.init()
+            if not pygame.joystick.get_init():
+                pygame.joystick.init()
             self._timer.start()
-            self.sig_log.emit("[USB Joystick] Siap mendeteksi controller USB yang dicolokkan...", "INFO")
+            self.sig_log.emit("[Joystick] Siap mendeteksi controller USB...", "INFO")
         except Exception as e:
-            self.sig_log.emit(f"[USB Joystick ERROR] Gagal inisialisasi pygame joystick: {e}", "ERROR")
+            self.sig_log.emit(f"[Joystick ERROR] Gagal init: {e}", "ERROR")
 
     def stop(self):
-        """Menghentikan polling joystick."""
         self._timer.stop()
         if self._connected and self._joystick:
             try:
                 self._joystick.quit()
             except Exception:
                 pass
-            self._joystick = None
-            self._connected = False
-            self.sig_joystick_status.emit(False, "Joystick Ditutup")
+        self._joystick = None
+        self._connected = False
+        self.sig_joystick_status.emit(False, "Joystick Ditutup")
 
     def set_enabled(self, enabled: bool):
-        """Aktifkan / nonaktifkan pengiriman sinyal kendali dari joystick ke ROV."""
         self._enabled = enabled
         if not enabled:
-            # Kirim sinyal netral (hover / berhenti) saat joystick dinonaktifkan
             self.sig_manual_control.emit(0, 0, 500, 0, 0)
-            self.sig_log.emit("[USB Joystick] Kendali manual joystick dinonaktifkan.", "INFO")
+            self.sig_log.emit("[Joystick] Kendali manual dinonaktifkan.", "INFO")
         else:
-            self.sig_log.emit("[USB Joystick] Kendali manual joystick diaktifkan.", "INFO")
+            self.sig_log.emit("[Joystick] Kendali manual diaktifkan.", "INFO")
 
+    # ──────────────────────────────────────────
+    # Helpers
+    # ──────────────────────────────────────────
     def _apply_deadzone(self, value: float, threshold: float = 0.08) -> float:
-        """Menghilangkan drift kecil ketika stik berada di tengah."""
-        if abs(value) < threshold:
-            return 0.0
-        return value
+        return 0.0 if abs(value) < threshold else value
 
+    def _get_axis(self, func_key: str, num_axes: int) -> float:
+        """Baca axis sesuai konfigurasi, terapkan deadzone, invert, scale."""
+        cfg = self._axes_map.get(func_key)
+        if not cfg:
+            return 0.0
+        idx = cfg.get("axis", -1)
+        if idx < 0 or idx >= num_axes:
+            return 0.0
+        raw = self._joystick.get_axis(idx)
+        raw = self._apply_deadzone(raw, cfg.get("deadzone", 0.08))
+        if cfg.get("invert", False):
+            raw = -raw
+        return raw * cfg.get("scale", 1.0)
+
+    def _btn_idx(self, func_key: str) -> int:
+        return int(self._buttons_map.get(func_key, -1))
+
+    # ──────────────────────────────────────────
+    # Main Poll Loop
+    # ──────────────────────────────────────────
     def _poll_joystick(self):
         if not PYGAME_AVAILABLE:
             return
-
         try:
-            # Pompa event agar pygame membaca status perangkat USB terkini tanpa window GUI pygame
             pygame.event.pump()
-            
             count = pygame.joystick.get_count()
+
             if count > 0:
                 if not self._connected:
-                    # Ambil joystick pertama yang dicolokkan
                     self._joystick = pygame.joystick.Joystick(0)
                     self._joystick.init()
                     self._connected = True
-                    device_name = self._joystick.get_name()
-                    self.sig_joystick_status.emit(True, device_name)
-                    self.sig_log.emit(f"[USB Joystick SUCCESS] Joystick Terdeteksi & Aktif: {device_name}", "SUCCESS")
+                    name = self._joystick.get_name()
+                    self.sig_joystick_status.emit(True, name)
+                    self.sig_log.emit(f"[Joystick] Terdeteksi: {name}", "SUCCESS")
                     self._prev_buttons = [0] * self._joystick.get_numbuttons()
             else:
                 if self._connected:
                     self._connected = False
                     self._joystick = None
-                    self.sig_joystick_status.emit(False, "Tidak Ada Joystick USB Tercolok")
-                    self.sig_log.emit("[USB Joystick WARNING] Joystick USB terputus / dicabut.", "WARN")
-                    # Kirim berhenti ke ROV demi keamanan
+                    self.sig_joystick_status.emit(False, "Tidak Ada Joystick")
+                    self.sig_log.emit("[Joystick] Controller dicabut.", "WARN")
                     self.sig_manual_control.emit(0, 0, 500, 0, 0)
                 return
 
             if not self._connected or not self._joystick or not self._enabled:
                 return
 
-            # --- PEMBACAAN AXIS JOYSTICK ---
-            num_axes = self._joystick.get_numaxes()
-            
-            # 1. Axis 1: Left Stick Vertical (Maju / Mundur -> x)
-            # Pada joystick, dorong ke depan bernilai negatif (-1.0), tarik ke belakang positif (+1.0)
-            raw_y_left = self._apply_deadzone(self._joystick.get_axis(1)) if num_axes > 1 else 0.0
-            x = int(-raw_y_left * 1000)
+            num_axes    = self._joystick.get_numaxes()
+            num_buttons = self._joystick.get_numbuttons()
+            num_hats    = self._joystick.get_numhats()
 
-            # 2. Axis 0: Left Stick Horizontal (Geser Kiri / Kanan -> y)
-            # Dorong kanan positif (+1.0), kiri negatif (-1.0)
-            raw_x_left = self._apply_deadzone(self._joystick.get_axis(0)) if num_axes > 0 else 0.0
-            y = int(raw_x_left * 1000)
+            # ── Baca axis dari config ──
+            x = int(self._get_axis("forward_x", num_axes) * 1000)
+            y = int(self._get_axis("strafe_y",  num_axes) * 1000)
+            r = int(self._get_axis("yaw_r",     num_axes) * 1000)
+            z_raw = self._get_axis("depth_z", num_axes)
+            z = int(-z_raw * 500 + 500)
 
-            # 3. Axis 3 / Axis 2: Right Stick Horizontal (Putar Yaw -> r)
-            # Pada beberapa gamepad (Xbox/DualShock), axis kanan X ada di index 3, atau index 2
-            axis_r_idx = 3 if num_axes > 3 else (2 if num_axes > 2 else -1)
-            raw_x_right = self._apply_deadzone(self._joystick.get_axis(axis_r_idx)) if axis_r_idx >= 0 else 0.0
-            r = int(raw_x_right * 1000)
-
-            # 4. Axis 4 / Axis 3: Kedalaman / Throttle (Naik / Turun -> z)
-            # Default netral / hover = 500. Naik = > 500 (sampai 1000), Turun = < 500 (sampai 0)
-            axis_z_idx = 4 if num_axes > 4 else (3 if num_axes > 3 and axis_r_idx != 3 else -1)
-            raw_y_right = self._apply_deadzone(self._joystick.get_axis(axis_z_idx)) if axis_z_idx >= 0 else 0.0
-            
-            # Mapping axis vertical stik kanan ke 0-1000
-            z = int(-raw_y_right * 500 + 500)
-
-            # --- KENDALI TAMBAHAN KEDALAMAN (D-PAD / HAT & SHOULDER BUTTONS) ---
-            num_hats = self._joystick.get_numhats()
-            if num_hats > 0:
+            # ── D-Pad untuk depth ──
+            if self._hat_depth and num_hats > 0:
                 hat = self._joystick.get_hat(0)
-                if hat[1] > 0:    # D-Pad UP ditekankan -> Naik
+                if hat[1] > 0:
                     z = 850
-                elif hat[1] < 0:  # D-Pad DOWN ditekankan -> Turun (Dive)
+                elif hat[1] < 0:
                     z = 150
 
-            # --- PEMBACAAN TOMBOL & BITMASK ---
-            num_buttons = self._joystick.get_numbuttons()
             current_buttons = [self._joystick.get_button(i) for i in range(num_buttons)]
-            
-            # Override R1 (biasanya button index 5 atau 4) untuk naik, L1 (button 4 atau 3) untuk turun
-            if num_buttons > 5:
-                if current_buttons[5]:  # R1 / RB
-                    z = max(z, 800)
-                if current_buttons[4]:  # L1 / LB
-                    z = min(z, 200)
 
-            # Pastikan batas rentang x, y, z, r aman
+            # ── Tombol depth override ──
+            bi_up   = self._btn_idx("depth_up")
+            bi_down = self._btn_idx("depth_down")
+            if 0 <= bi_up < num_buttons and current_buttons[bi_up]:
+                z = max(z, 800)
+            if 0 <= bi_down < num_buttons and current_buttons[bi_down]:
+                z = min(z, 200)
+
+            # Clamp
             x = max(-1000, min(1000, x))
             y = max(-1000, min(1000, y))
-            z = max(0, min(1000, z))
+            z = max(0,    min(1000, z))
             r = max(-1000, min(1000, r))
 
-            # Bitmask tombol untuk dikirim ke ROV
+            # Bitmask
             buttons_mask = 0
-            for idx, btn_state in enumerate(current_buttons):
-                if btn_state:
+            for idx, s in enumerate(current_buttons):
+                if s:
                     buttons_mask |= (1 << idx)
 
-            # Deteksi tombol khusus Arm / Disarm (contoh: Tombol Start / Select pada Gamepad)
-            # Biasanya tombol 7 (Start) / tombol 6 (Select) pada stik standar USB / Xbox / PS
+            # ── Single-press events ──
             if len(self._prev_buttons) == num_buttons:
                 for idx in range(num_buttons):
                     if current_buttons[idx] and not self._prev_buttons[idx]:
-                        # Tombol baru ditekankan (single press event)
-                        if idx == 7 or idx == 9:  # Tombol START / OPTIONS
-                            self.sig_arm_toggled.emit()
-                        elif idx == 6 or idx == 8:  # Tombol SELECT / SHARE
-                            self.sig_disarm_toggled.emit()
+                        self._handle_button_press(idx)
+
+            # ── Servo logic ──
+            if self.servo_config and len(self._prev_buttons) == num_buttons:
+                for s in self.servo_config:
+                    pin     = s["pin"]
+                    mode    = s.get("mode", "toggle")
+                    min_pwm = s.get("min_pwm", 1000)
+                    max_pwm = s.get("max_pwm", 2000)
+                    step    = s.get("step", 20)
+                    b1      = s.get("btn_1", -1)
+                    b2      = s.get("btn_2", -1)
+
+                    old_pwm = self.servo_states.get(pin, s.get("trim_pwm", 1500))
+                    new_pwm = old_pwm
+
+                    if mode == "toggle":
+                        if 0 <= b1 < num_buttons and current_buttons[b1] and not self._prev_buttons[b1]:
+                            new_pwm = min_pwm if old_pwm >= max_pwm else max_pwm
+                    elif mode == "incremental":
+                        if 0 <= b1 < num_buttons and current_buttons[b1]:
+                            new_pwm += step
+                        if 0 <= b2 < num_buttons and current_buttons[b2]:
+                            new_pwm -= step
+
+                    new_pwm = max(min_pwm, min(max_pwm, new_pwm))
+                    if new_pwm != old_pwm:
+                        self.servo_states[pin] = new_pwm
+                        self.sig_set_servo.emit(pin, new_pwm)
 
             self._prev_buttons = current_buttons
-
-            # Kirim sinyal kendali manual
             self.sig_manual_control.emit(x, y, z, r, buttons_mask)
 
         except Exception:
             pass
+
+    def _handle_button_press(self, idx: int):
+        """Tangani single-press event berdasarkan config buttons."""
+        for func_key, btn_idx in self._buttons_map.items():
+            if btn_idx == idx:
+                if func_key == "arm":
+                    self.sig_arm_toggled.emit()
+                elif func_key == "disarm":
+                    self.sig_disarm_toggled.emit()
+                elif func_key in ("mode_manual", "mode_stabilize", "mode_depth_hold"):
+                    mode_name = func_key.replace("mode_", "").upper().replace("_", " ")
+                    self.sig_mode_changed.emit(mode_name)

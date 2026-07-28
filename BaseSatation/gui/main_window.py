@@ -8,8 +8,10 @@ from PySide6.QtGui import QIcon
 from widgets import (
     AttitudeIndicator, CompassIndicator, TelemetryPanel,
     ControlPanel, VideoPanel, LogPanel, QRPanel,
-    TrajectoryPanel, DesignROVPanel
+    TrajectoryPanel, DesignROVPanel, MotorPanel
 )
+from widgets.servo_panel import ServoPanel
+from widgets.joystick_mapper import JoystickMapperPanel
 from worker import ROVWorker, DualVideoReceiverManager, JoystickWorker
 from styles import DARK_HUD_THEME
 
@@ -131,6 +133,18 @@ class MainWindow(QMainWindow):
         self.design_panel = DesignROVPanel()
         self.center_tabs.addTab(self.design_panel, " GAMBAR DESIGN ROV (PLACEHOLDER)")
 
+        # TAB 4: Motor Diagnostics
+        self.motor_panel = MotorPanel()
+        self.center_tabs.addTab(self.motor_panel, " MOTOR DIAGNOSTICS")
+
+        # TAB 5: SERVO CONTROL
+        self.servo_panel = ServoPanel()
+        self.center_tabs.addTab(self.servo_panel, " SERVO CONTROL")
+
+        # TAB 6: JOYSTICK MAPPER
+        self.joystick_mapper = JoystickMapperPanel()
+        self.center_tabs.addTab(self.joystick_mapper, "🕹️ JOYSTICK MAPPER")
+
         center_layout.addWidget(self.center_tabs)
         main_splitter.addWidget(center_widget)
 
@@ -157,10 +171,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(main_splitter, 1)
 
     def _init_worker(self):
-        self.worker = ROVWorker()
-        self.worker_thread = QThread(self)
-        self.worker.moveToThread(self.worker_thread)
-        self.worker_thread.start()
+        self.worker = ROVWorker(self)
 
         # Connect UI signals ke Worker methods
         self.control_panel.sig_connect_requested.connect(self.worker.connect_rov)
@@ -172,6 +183,9 @@ class MainWindow(QMainWindow):
         self.worker.sig_log.connect(self.log_panel.append_log)
         self.worker.sig_connected.connect(self._on_connection_changed)
         self.worker.sig_state_updated.connect(self._on_state_updated)
+
+        # Connect MotorPanel signals
+        self.motor_panel.sig_motor_test.connect(self.worker.send_motor_test)
 
         # Inisialisasi & Start UDP Video Stream Receiver (CAM 1, CAM 2, & QR Crop)
         self.video_receivers = DualVideoReceiverManager(port_cam1=9002, port_cam2=9003, port_qr=9004, parent=self)
@@ -189,6 +203,10 @@ class MainWindow(QMainWindow):
         self.joystick_worker.sig_manual_control.connect(self._on_joystick_control)
         self.joystick_worker.sig_arm_toggled.connect(lambda: self.worker.set_armed(True))
         self.joystick_worker.sig_disarm_toggled.connect(lambda: self.worker.set_armed(False))
+        self.joystick_worker.sig_set_servo.connect(self.worker.send_set_servo)
+        self.servo_panel.sig_config_saved.connect(self.joystick_worker.reload_servo_config)
+        self.joystick_mapper.sig_config_saved.connect(self.joystick_worker.reload_joystick_config)
+        self.joystick_worker.sig_mode_changed.connect(self.worker.set_mode)
         self.control_panel.sig_joystick_enable_toggled.connect(self.joystick_worker.set_enabled)
         self.joystick_worker.start()
 
@@ -217,6 +235,9 @@ class MainWindow(QMainWindow):
         self.video_panel.set_streaming_state(connected)
 
     def _on_state_updated(self, state):
+        # Debug logging ke console
+        print(f"[MainWindow DEBUG] _on_state_updated dipanggil! Roll={state.roll:.1f} Pitch={state.pitch:.1f} Yaw={state.yaw:.1f}")
+        
         # Update Telemetri & Altimeter Dasar Kolam
         self.telemetry_panel.update_telemetry(state)
         self.control_panel.update_status(state.mode, state.armed)
@@ -227,6 +248,10 @@ class MainWindow(QMainWindow):
 
         # Update Trajectory Path Tracker
         self.trajectory_panel.update_trajectory(state)
+
+        # Update Motor PWM
+        if hasattr(state, 'pwm_outputs'):
+            self.motor_panel.update_pwm_data(state.pwm_outputs)
 
         # Update QR Code hasil pembacaan jika ada QR baru
         if getattr(state, 'qr_last_code', ''):
@@ -259,9 +284,8 @@ class MainWindow(QMainWindow):
         """Clean up threads & MAVLink connection saat aplikasi ditutup."""
         if hasattr(self, 'joystick_worker'):
             self.joystick_worker.stop()
+        if hasattr(self, 'joystick_mapper'):
+            self.joystick_mapper.stop()
         self.video_receivers.stop_all()
         self.worker.disconnect_rov()
-        if self.worker_thread.isRunning():
-            self.worker_thread.quit()
-            self.worker_thread.wait(1000)
         event.accept()

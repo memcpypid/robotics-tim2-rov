@@ -21,6 +21,7 @@ python main.py --connect /dev/ttyACM0
 """
 import time
 import argparse
+import logging
 from typing import Optional
 
 from models.state import ROVState, StateManager
@@ -30,8 +31,6 @@ from sensor.telemetry import ROVTelemetrySensor
 from control.arming import ROVArmingControl
 from control.modes import ROVModeControl
 from control.motion import ROVMotionControl
-
-
 class ROVController:
     """
     Kelas utama (Facade) yang menggabungkan seluruh fungsionalitas koneksi,
@@ -92,13 +91,30 @@ class ROVController:
 
     def move(self, x: int = 0, y: int = 0, z: int = 500, r: int = 0, buttons: int = 0) -> bool:
         """
-        Mengendalikan thruster 6-DOF ROV dengan joystick/setpoint.
+        Mengendalikan thruster 6-DOF ROV dengan joystick/setpoint via MANUAL_CONTROL MAVLink.
+        TIDAK melakukan RC_CHANNELS_OVERRIDE — nilai dikontrol penuh oleh mixer ArduSub.
+
         x: Maju/Mundur (-1000 s/d 1000)
         y: Geser Kiri/Kanan (-1000 s/d 1000)
-        z: Naik/Turun Kedalaman (0 s/d 1000, 500 netral)
+        z: Naik/Turun Kedalaman (0 s/d 1000, 500 netral/hover)
         r: Putar Yaw (-1000 s/d 1000)
         """
         return self.motion.send_manual_control(x, y, z, r, buttons)
+
+    def dive(self, depth_rate: int = 0) -> bool:
+        """
+        Perintah menyelam / naik yang mudah digunakan.
+        depth_rate: -1000 = naik penuh, 0 = hover/diam, +1000 = turun/menyelam penuh
+        """
+        return self.motion.dive(depth_rate)
+
+    def stop(self) -> bool:
+        """Menghentikan semua gerak ROV (hover di tempat)."""
+        return self.motion.stop()
+
+    def set_servo(self, pin: int, pwm: int) -> bool:
+        """Menggerakkan servo spesifik (misalnya Gripper di pin 9)."""
+        return self.motion.set_servo(pin, pwm)
 
     def set_rc_channels(self, channels_pwm: list) -> bool:
         """Mengirim override PWM manual ke motor/aktuator ROV (1000-2000)."""
@@ -107,11 +123,18 @@ class ROVController:
 
 def _main_test_cli():
     parser = argparse.ArgumentParser(description="Basic ROV Flight Control Controller (ArduSub)")
-    parser.add_argument("--connect", default="/dev/ttyACM0", help="String koneksi MAVLink (contoh: /dev/ttyACM0 atau udp:127.0.0.1:14550)")
-    parser.add_argument("--baud", type=int, default=9600, help="Baudrate serial")
-    parser.add_argument("--lan", action="store_true", help="Aktifkan LAN Bridge Server (JSON over UDP) dengan Auto-Discovery")
-    parser.add_argument("--client-ip", default="AUTO", help="IP tujuan Base Station GUI (default: AUTO untuk auto-discovery)")
+    parser.add_argument("--connect", default="COM13", help="String koneksi MAVLink (contoh: /dev/ttyACM0 atau udp:127.0.0.1:14550)")
+    parser.add_argument("--baud", type=int, default=115200, help="Baudrate serial (Cube Black default: 115200)")
+    parser.add_argument("--lan", action="store_true", default=True, help="Aktifkan LAN Bridge Server (JSON over UDP)")
+    parser.add_argument("--client-ip", default="127.0.0.1", help="IP tujuan Base Station GUI (default: 127.0.0.1 untuk localhost)")
     args = parser.parse_args()
+
+    # Setup logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
+        datefmt="%H:%M:%S"
+    )
 
     rov = ROVController(connection_str=args.connect, baudrate=args.baud)
     
@@ -130,8 +153,10 @@ def _main_test_cli():
         print("\n[SUCCESS] ROV Terhubung! Memulai pemantauan sensor realtime (tekan Ctrl+C untuk keluar)...\n")
         while True:
             state = rov.get_state()
-            print(f"\r[STATUS ROV] Mode: {state.mode:<10} | Armed: {str(state.armed):<5} | Roll: {state.roll:6.1f}° | Pitch: {state.pitch:6.1f}° | Yaw: {state.yaw:6.1f}° | Kedalaman: {state.depth_m:5.2f} m | Baterai: {state.battery_voltage:4.1f} V ({state.battery_percent:3}%)", end="", flush=True)
-            # time.sleep(0.1)
+            status = f"\r[STATUS ROV] Mode: {state.mode:<9} | Armed: {str(state.armed):<5} | R: {state.roll:5.1f}° P: {state.pitch:5.1f}° Y: {state.yaw:5.1f}°"
+            # Padding untuk overwrite sisa karakter
+            print(status.ljust(120), end="", flush=True)
+            time.sleep(0.1)
     except KeyboardInterrupt:
         print("\n\n[INFO] Dihentikan oleh pengguna. Menutup koneksi...")
     finally:

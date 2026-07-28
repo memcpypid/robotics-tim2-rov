@@ -57,50 +57,66 @@ class UDPFrameReceiver(QObject):
         self.sig_log.emit(f"[{self.cam_name} Receiver] Layanan stream video ditutup.", "INFO")
 
     def _listen_loop(self):
+        # Gunakan timeout pendek agar tidak macet
+        self.sock.settimeout(0.05)
         while self._running and self.sock:
             try:
-                packet, addr = self.sock.recvfrom(65535)
-                if len(packet) < 6:
-                    continue
+                packets = []
+                # Drain UDP buffer
+                while True:
+                    try:
+                        self.sock.settimeout(0.0)
+                        packet, addr = self.sock.recvfrom(65535)
+                        packets.append((packet, addr))
+                    except (BlockingIOError, socket.timeout, OSError):
+                        break
                 
-                # Filter stream agar hanya menerima paket dari IP Jetson yang ditargetkan
-                if self.target_ip and self.target_ip not in ["0.0.0.0", "AUTO"]:
-                    sender_ip = addr[0]
-                    if self.target_ip == "127.0.0.1" and sender_ip not in ["127.0.0.1", "localhost"]:
+                self.sock.settimeout(0.05)
+                
+                latest_pixmap = None
+                
+                for packet, addr in packets:
+                    if len(packet) < 6:
                         continue
-                    elif self.target_ip != "127.0.0.1" and sender_ip != self.target_ip:
-                        continue
-                
-                # Unpack header: !I B B -> 6 bytes
-                packet_id, total_chunks, chunk_idx = struct.unpack("!IBB", packet[:6])
-                payload = packet[6:]
-                
-                if packet_id not in self._buffer:
-                    self._buffer[packet_id] = {}
-                    self._expected_chunks[packet_id] = total_chunks
                     
-                self._buffer[packet_id][chunk_idx] = payload
-                
-                # Jika semua chunk paket sudah lengkap tersusun
-                if len(self._buffer[packet_id]) == total_chunks:
-                    jpeg_data = b"".join(self._buffer[packet_id][i] for i in range(total_chunks))
+                    # Filter IP
+                    if self.target_ip and self.target_ip not in ["0.0.0.0", "AUTO"]:
+                        sender_ip = addr[0]
+                        if self.target_ip == "127.0.0.1" and sender_ip not in ["127.0.0.1", "localhost"]:
+                            continue
+                        elif self.target_ip != "127.0.0.1" and sender_ip != self.target_ip:
+                            continue
                     
-                    # Bersihkan buffer dari paket lama untuk mencegah kebocoran memori
-                    keys_to_clean = [k for k in self._buffer.keys() if k < packet_id - 5]
-                    for k in keys_to_clean:
-                        self._buffer.pop(k, None)
-                        self._expected_chunks.pop(k, None)
-                    self._buffer.pop(packet_id, None)
-                    self._expected_chunks.pop(packet_id, None)
+                    # Unpack header: !I B B -> 6 bytes
+                    packet_id, total_chunks, chunk_idx = struct.unpack("!IBB", packet[:6])
+                    payload = packet[6:]
+                    
+                    if packet_id not in self._buffer:
+                        self._buffer[packet_id] = {}
+                        self._expected_chunks[packet_id] = total_chunks
+                        
+                    self._buffer[packet_id][chunk_idx] = payload
+                    
+                    # Jika satu frame utuh
+                    if len(self._buffer[packet_id]) == total_chunks:
+                        jpeg_data = b"".join(self._buffer[packet_id][i] for i in range(total_chunks))
+                        
+                        keys_to_clean = [k for k in self._buffer.keys() if k < packet_id - 5]
+                        for k in keys_to_clean:
+                            self._buffer.pop(k, None)
+                            self._expected_chunks.pop(k, None)
+                        self._buffer.pop(packet_id, None)
+                        self._expected_chunks.pop(packet_id, None)
 
-                    # Decode dari bytes JPEG ke QPixmap
-                    qimg = QImage.fromData(jpeg_data, "JPG")
-                    if not qimg.isNull():
-                        pix = QPixmap.fromImage(qimg)
-                        self.sig_frame_received.emit(pix)
+                        # Decode
+                        qimg = QImage.fromData(jpeg_data, "JPG")
+                        if not qimg.isNull():
+                            latest_pixmap = QPixmap.fromImage(qimg)
+                
+                # Hanya emit frame terbaru untuk mencegah antrian GUI meluap
+                if latest_pixmap:
+                    self.sig_frame_received.emit(latest_pixmap)
 
-            except socket.timeout:
-                pass
             except Exception:
                 pass
 
