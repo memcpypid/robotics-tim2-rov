@@ -7,7 +7,7 @@
             "max_pwm": 2500,
             "trim_pwm": 1500,
             "step": 20,
-            "mode": "incremental",
+            "mode": "follow_pitch",
             "btn_1": 4,
             "btn_2": 5
         },
@@ -17,8 +17,8 @@
             "min_pwm": 500,
             "max_pwm": 2500,
             "trim_pwm": 1500,
-            "step": 100,
-            "mode": "incremental",
+            "step": 10,
+            "mode": "follow_roll",
             "btn_1": 3,
             "btn_2": 2
         },

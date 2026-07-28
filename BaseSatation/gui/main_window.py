@@ -208,6 +208,7 @@ class MainWindow(QMainWindow):
         self.joystick_mapper.sig_config_saved.connect(self.joystick_worker.reload_joystick_config)
         self.joystick_worker.sig_mode_changed.connect(self.worker.set_mode)
         self.control_panel.sig_joystick_enable_toggled.connect(self.joystick_worker.set_enabled)
+        self.worker.sig_state_updated.connect(self.joystick_worker.on_state_updated)
         self.joystick_worker.start()
 
         self.log_panel.append_log("Cockpit GUI v2.0 siap. Dual Camera, QR Decoder, & USB Joystick siap.", "INFO")

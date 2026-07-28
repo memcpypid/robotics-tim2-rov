@@ -49,9 +49,14 @@ class JoystickWorker(QObject):
 
         self.servo_config: list = []
         self.servo_states: dict = {}
+        self._latest_state = None
 
         self.reload_joystick_config()
         self.reload_servo_config()
+
+    def on_state_updated(self, state):
+        """Menerima update data sensor ROVState (Roll, Pitch, Yaw) dari Flight Controller."""
+        self._latest_state = state
 
     # ──────────────────────────────────────────
     # Config Reload
@@ -232,21 +237,66 @@ class JoystickWorker(QObject):
                     mode    = s.get("mode", "toggle")
                     min_pwm = s.get("min_pwm", 1000)
                     max_pwm = s.get("max_pwm", 2000)
+                    trim_pwm = s.get("trim_pwm", 1500)
                     step    = s.get("step", 20)
                     b1      = s.get("btn_1", -1)
                     b2      = s.get("btn_2", -1)
 
-                    old_pwm = self.servo_states.get(pin, s.get("trim_pwm", 1500))
+                    old_pwm = self.servo_states.get(pin, trim_pwm)
                     new_pwm = old_pwm
 
                     if mode == "toggle":
                         if 0 <= b1 < num_buttons and current_buttons[b1] and not self._prev_buttons[b1]:
                             new_pwm = min_pwm if old_pwm >= max_pwm else max_pwm
+
+                    elif mode == "3-state":
+                        # 3 State: 1 = Min PWM, 2 = Trim PWM, 3 = Max PWM
+                        if 0 <= b1 < num_buttons and current_buttons[b1] and not self._prev_buttons[b1]:
+                            if abs(old_pwm - min_pwm) < 50:
+                                new_pwm = trim_pwm
+                            elif abs(old_pwm - trim_pwm) < 50:
+                                new_pwm = max_pwm
+                            else:
+                                new_pwm = min_pwm
+                        if 0 <= b2 < num_buttons and current_buttons[b2] and not self._prev_buttons[b2]:
+                            if abs(old_pwm - max_pwm) < 50:
+                                new_pwm = trim_pwm
+                            elif abs(old_pwm - trim_pwm) < 50:
+                                new_pwm = min_pwm
+                            else:
+                                new_pwm = max_pwm
+
                     elif mode == "incremental":
                         if 0 <= b1 < num_buttons and current_buttons[b1]:
                             new_pwm += step
                         if 0 <= b2 < num_buttons and current_buttons[b2]:
                             new_pwm -= step
+
+                    elif mode in ("follow_roll", "follow_pitch", "follow_yaw"):
+                        # Toggle Kunci/Kunci-Lepas Mode Follow dengan b1 jika b1 diset
+                        if 0 <= b1 < num_buttons and current_buttons[b1] and not self._prev_buttons[b1]:
+                            s["_follow_locked"] = not s.get("_follow_locked", False)
+                            status_str = "DILOCK/DIHENTIKAN" if s["_follow_locked"] else "DIBUKA (FOLLOW ACTIVE)"
+                            self.sig_log.emit(f"[Servo Pin {pin}] Mode {mode} {status_str}", "INFO")
+
+                        if not s.get("_follow_locked", False) and self._latest_state:
+                            if mode == "follow_roll":
+                                angle = float(getattr(self._latest_state, "roll", 0.0))
+                                max_deg = 45.0
+                            elif mode == "follow_pitch":
+                                angle = float(getattr(self._latest_state, "pitch", 0.0))
+                                max_deg = 45.0
+                            else:  # follow_yaw
+                                angle = float(getattr(self._latest_state, "yaw", 0.0))
+                                max_deg = 180.0
+
+                            angle_clamped = max(-max_deg, min(max_deg, angle))
+                            if angle_clamped >= 0:
+                                ratio = angle_clamped / max_deg
+                                new_pwm = int(trim_pwm + ratio * (max_pwm - trim_pwm))
+                            else:
+                                ratio = abs(angle_clamped) / max_deg
+                                new_pwm = int(trim_pwm - ratio * (trim_pwm - min_pwm))
 
                     new_pwm = max(min_pwm, min(max_pwm, new_pwm))
                     if new_pwm != old_pwm:

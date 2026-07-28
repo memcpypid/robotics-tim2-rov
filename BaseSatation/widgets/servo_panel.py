@@ -323,7 +323,7 @@ class ServoPanel(QWidget):
         # Row 3: Mode
         layout.addWidget(QLabel("Mode:"), 3, 0)
         cb_mode = QComboBox()
-        cb_mode.addItems(["toggle", "incremental"])
+        cb_mode.addItems(["toggle", "3-state", "incremental", "follow_roll", "follow_pitch", "follow_yaw"])
         cb_mode.setCurrentText(data.get("mode", "toggle"))
         layout.addWidget(cb_mode, 3, 1)
 
