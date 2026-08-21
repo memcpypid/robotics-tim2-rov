@@ -108,7 +108,7 @@ class ROVLANServer:
                     last_debug = time.time()
                     print(f"[LANServer ERROR] Gagal mengirim telemetri UDP ke {self.client_ip}:{self.telemetry_port}: {e}")
             
-            time.sleep(0.05)  # 20 Hz
+            time.sleep(0.02)  # 20 Hz
 
     def _command_loop(self):
         """Loop penerima perintah kontrol dari GUI Base Station."""
@@ -137,7 +137,7 @@ class ROVLANServer:
     def _handle_command(self, cmd_json: Dict[str, Any]) -> Dict[str, Any]:
         """Memproses perintah JSON dan memanggil fungsi di ROVController."""
         cmd = cmd_json.get("cmd", "").upper()
-        print(f"[LANServer] Perintah diterima dari GUI: {cmd}")
+        # print(f"[LANServer] Perintah diterima dari GUI: {cmd}")
 
         if cmd in ["PING", "PING_STREAM"]:
             return {"status": "OK", "cmd": "PONG", "timestamp": time.time()}
@@ -159,6 +159,18 @@ class ROVLANServer:
                 mode_name = cmd_json.get("mode", "MANUAL")
                 success = self.rov.set_mode(mode_name)
                 return {"status": "OK" if success else "ERROR", "cmd": "SET_MODE", "mode": mode_name, "success": success}
+
+            elif cmd == "SET_AUTO":
+                print("[LANServer] Mengaktifkan Mode AUTONOMOUS (Vision Controlled)")
+                # Ubah mode FC ke GUIDED atau STABILIZE (dengan penguncian input manual)
+                success = self.rov.set_mode("GUIDED") or self.rov.set_mode("STABILIZE")
+                return {"status": "OK" if success else "ERROR", "cmd": "SET_AUTO", "success": success}
+
+            elif cmd == "SET_MANUAL":
+                print("[LANServer] Mengembalikan Mode ke MANUAL JOYSTICK")
+                success = self.rov.set_mode("STABILIZE") or self.rov.set_mode("MANUAL")
+                return {"status": "OK" if success else "ERROR", "cmd": "SET_MANUAL", "success": success}
+
 
             elif cmd == "MOVE":
                 x = int(cmd_json.get("x", 0))

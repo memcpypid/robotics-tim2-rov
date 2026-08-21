@@ -144,6 +144,13 @@ class ROVWorker(QObject):
         except Exception as e:
             self.sig_log.emit(f"Error saat mengubah mode: {str(e)}", "ERROR")
 
+    def set_auto_mode(self, is_auto: bool):
+        mode_str = "AUTONOMOUS (VISION)" if is_auto else "MANUAL (JOYSTICK)"
+        self.sig_log.emit(f"[Control System] Peralihan mode kendali ke: {mode_str}", "INFO")
+        if self.lan_client and self.lan_client.is_lan_connected:
+            self.lan_client.set_auto_mode(is_auto)
+
+
     def send_manual_control(self, x: int, y: int, z: int, r: int, buttons: int = 0):
         if self.lan_client and self.lan_client.is_lan_connected:
             self.lan_client.send_manual_control(x, y, z, r, buttons)

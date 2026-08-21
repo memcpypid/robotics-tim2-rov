@@ -182,7 +182,12 @@ class LANClientWorker(QObject):
     def set_mode(self, mode_name: str):
         self.send_command({"cmd": "SET_MODE", "mode": mode_name})
 
+    def set_auto_mode(self, is_auto: bool):
+        cmd = "SET_AUTO" if is_auto else "SET_MANUAL"
+        self.send_command({"cmd": cmd})
+
     def send_manual_control(self, x: int, y: int, z: int, r: int, buttons: int = 0):
+
         self.send_command({"cmd": "MOVE", "x": x, "y": y, "z": z, "r": r, "buttons": buttons})
 
     def send_motor_test(self, channel: int, thrust: float):

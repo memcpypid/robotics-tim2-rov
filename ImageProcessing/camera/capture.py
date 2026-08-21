@@ -85,15 +85,24 @@ class CameraThread:
             return True
 
         print(f"[{self.cam_name}] Opening camera device: {self.config.device} ...")
-        print(f"[{self.cam_name}] Backend: V4L2 (cv2.CAP_V4L2)")
-
+        import sys
+        # 1. Buka kamera dengan backend sesuai OS
+        
         # Konversi ke integer jika device berupa digit string ('0' -> 0)
         source_val = int(self.config.device) if isinstance(self.config.device, str) and self.config.device.isdigit() else self.config.device
 
-        import sys
-        # 1. Buka kamera dengan backend sesuai OS (CAP_V4L2 di Linux, CAP_ANY di OS lain seperti Windows)
         try:
-            backend = cv2.CAP_V4L2 if sys.platform.startswith('linux') else cv2.CAP_ANY
+            if sys.platform.startswith('linux'):
+                backend = cv2.CAP_V4L2
+                backend_str = "V4L2"
+            elif sys.platform.startswith('win'):
+                backend = cv2.CAP_DSHOW
+                backend_str = "DSHOW"
+            else:
+                backend = cv2.CAP_ANY
+                backend_str = "ANY"
+            
+            print(f"[{self.cam_name}] Backend: {backend_str}")
             self.cap = cv2.VideoCapture(source_val, backend)
         except Exception as e:
             print(f"[{self.cam_name} ERROR] Exception saat membuka device {self.config.device}: {e}")
@@ -240,8 +249,8 @@ class DualCameraCapture:
                 device=src1,
                 width=width,
                 height=height,
-                fps=30,
-                fourcc=None,  # Prefer YUYV / Default V4L2 format untuk kamera 1 kecuali diminta lain
+                fps=15,       # Turunkan ke 15 FPS untuk menghemat USB Bandwidth
+                fourcc=None,  # Kembalikan ke format bawaan kamera (YUYV) agar tidak error
                 cam_name="CAM1-FRONT"
             )
 
@@ -250,14 +259,13 @@ class DualCameraCapture:
             cfg2 = cam2_config
         else:
             src2 = cam2_source if cam2_source is not None else (cam2_config if cam2_config is not None else "/dev/video1")
-            # Jika user tidak meneruskan CameraConfig spesifik, kita atur default optimal untk cam 2:
-            # MJPG 1280x720 (atau sesuai width/height jika di-override)
+            # Gunakan MJPG agar kedua kamera eksternal (Dual Webcam) dapat berjalan bersamaan di 1 USB Controller
             cfg2 = CameraConfig(
                 device=src2,
-                width=1280 if width == 640 else width,
-                height=720 if height == 480 else height,
-                fps=30,
-                fourcc="MJPG",
+                width=width,
+                height=height,
+                fps=15,       # Turunkan ke 15 FPS untuk menghemat USB Bandwidth
+                fourcc=None,  # Kembalikan ke format bawaan kamera (YUYV) agar tidak error
                 cam_name="CAM2-BOTTOM"
             )
 

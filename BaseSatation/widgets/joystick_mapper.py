@@ -49,8 +49,10 @@ BUTTON_FUNCTIONS = [
     ("mode_manual",    "🕹️ Mode: MANUAL"),
     ("mode_stabilize", "📐 Mode: STABILIZE"),
     ("mode_depth_hold","📏 Mode: DEPTH HOLD"),
+    ("auto_toggle",    "🤖 Mode: AUTONOMOUS TOGGLE"),
     ("lights_toggle",  "💡 Lampu Toggle"),
 ]
+
 
 XBOX_NAMES = {
     0:"A", 1:"B", 2:"X", 3:"Y",
@@ -491,6 +493,7 @@ class JoystickMapperPanel(QWidget):
             self.axes_grid.addWidget(lbl_live, row, 1)
 
             cb_func = QComboBox()
+            cb_func.wheelEvent = lambda event: event.ignore()
             cb_func.setStyleSheet(self._combo_style())
             for val, label in AXIS_FUNCTIONS:
                 cb_func.addItem(label, val)
@@ -536,6 +539,7 @@ class JoystickMapperPanel(QWidget):
             self.buttons_grid.addWidget(lbl_state, row, 1)
 
             cb_func = QComboBox()
+            cb_func.wheelEvent = lambda event: event.ignore()
             cb_func.setStyleSheet(self._combo_style())
             for val, label in BUTTON_FUNCTIONS:
                 cb_func.addItem(label, val)

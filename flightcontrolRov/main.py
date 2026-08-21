@@ -153,9 +153,9 @@ def _main_test_cli():
         print("\n[SUCCESS] ROV Terhubung! Memulai pemantauan sensor realtime (tekan Ctrl+C untuk keluar)...\n")
         while True:
             state = rov.get_state()
-            status = f"\r[STATUS ROV] Mode: {state.mode:<9} | Armed: {str(state.armed):<5} | R: {state.roll:5.1f}° P: {state.pitch:5.1f}° Y: {state.yaw:5.1f}°"
+            # status = f"\r[STATUS ROV] Mode: {state.mode:<9} | Armed: {str(state.armed):<5} | R: {state.roll:5.1f}° P: {state.pitch:5.1f}° Y: {state.yaw:5.1f}°"
             # Padding untuk overwrite sisa karakter
-            print(status.ljust(120), end="", flush=True)
+            # print(status.ljust(120), end="", flush=True)
             time.sleep(0.1)
     except KeyboardInterrupt:
         print("\n\n[INFO] Dihentikan oleh pengguna. Menutup koneksi...")

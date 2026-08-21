@@ -14,15 +14,17 @@ class ControlPanel(QWidget):
     sig_arm_requested = Signal(bool)          # True untuk Arm, False untuk Disarm
     sig_mode_requested = Signal(str)          # ("MANUAL", "STABILIZE", "DEPTH_HOLD")
     sig_joystick_enable_toggled = Signal(bool)# True untuk enable joystick, False untuk disable
+    sig_auto_mode_toggled = Signal(bool)     # True = Autonomous Mode, False = Manual
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._auto_mode = False
         self._init_ui()
 
     def _init_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(6, 6, 6, 6)
-        main_layout.setSpacing(12)
+        main_layout.setSpacing(10)
 
         # 0. Groupbox Status Utama (Mode & Armed status)
         status_group = QGroupBox("FLIGHT & ARM STATUS")
@@ -42,36 +44,25 @@ class ControlPanel(QWidget):
         status_layout.addWidget(self.lbl_armed)
         main_layout.addWidget(status_group)
 
-        # 1. Groupbox Koneksi LAN/WiFi Jetson Nano
-        conn_group = QGroupBox("JETSON NANO LAN / WIFI CONNECTION")
-        conn_layout = QVBoxLayout(conn_group)
-        conn_layout.setContentsMargins(12, 18, 12, 12)
-        conn_layout.setSpacing(10)
+        # 1. Groupbox Autonomous Control Toggle
+        auto_group = QGroupBox("AUTONOMOUS / VISION CONTROL")
+        auto_layout = QVBoxLayout(auto_group)
+        auto_layout.setContentsMargins(12, 18, 12, 12)
+        auto_layout.setSpacing(8)
 
-        row1 = QHBoxLayout()
-        row1.addWidget(QLabel("IP Jetson Nano:"))
-        
-        self.combo_target = QComboBox()
-        self.combo_target.addItems([
-            "127.0.0.1",         # Localhost (Pixhawk via USB langsung di laptop yang sama)
-            "192.168.2.2",       # BlueROV default (via Ethernet)
-            "192.168.1.100",
-            "192.168.43.149",
-            "10.0.0.2"
-        ])
-        self.combo_target.setEditable(True)
-        self.combo_target.setToolTip("Ketik manual alamat IP ROV Backend / Jetson Nano (LAN/WiFi) lalu klik CONNECT\n"
-                                      "Gunakan 127.0.0.1 jika ROV Backend berjalan di laptop yang sama.")
-        row1.addWidget(self.combo_target, stretch=1)
-        conn_layout.addLayout(row1)
+        self.btn_auto_toggle = QPushButton("MODE MANUAL (JOYSTICK)")
+        self.btn_auto_toggle.setCheckable(True)
+        self.btn_auto_toggle.setStyleSheet("""
+            QPushButton { background-color: #1a2736; color: #00e5ff; font-weight: bold; padding: 8px; border: 1px solid #00e5ff; border-radius: 5px; }
+            QPushButton:checked { background-color: #d35400; color: #ffffff; border: 1px solid #e67e22; }
+        """)
+        self.btn_auto_toggle.clicked.connect(self._on_auto_toggled)
+        auto_layout.addWidget(self.btn_auto_toggle)
 
-        self.btn_connect = QPushButton("CONNECT TO JETSON")
-        self.btn_connect.setObjectName("btn_connect")
-        self.btn_connect.setCheckable(True)
-        self.btn_connect.clicked.connect(self._on_connect_toggled)
-        conn_layout.addWidget(self.btn_connect)
-
-        main_layout.addWidget(conn_group)
+        self.lbl_auto_mode = QLabel(" Status Kendali: MANUAL JOYSTICK")
+        self.lbl_auto_mode.setStyleSheet("font-size: 11px; color: #40bf6a; font-weight: bold;")
+        auto_layout.addWidget(self.lbl_auto_mode)
+        main_layout.addWidget(auto_group)
 
         # 2. Groupbox Arming & Safety
         arm_group = QGroupBox("THRUSTER ARMING")
@@ -112,6 +103,7 @@ class ControlPanel(QWidget):
 
         main_layout.addWidget(mode_group)
 
+
         # 4. Groupbox USB Joystick / Gamepad Control
         joy_group = QGroupBox("USB JOYSTICK / GAMEPAD MANUAL CONTROL")
         joy_layout = QVBoxLayout(joy_group)
@@ -148,17 +140,21 @@ class ControlPanel(QWidget):
     def update_joystick_display(self, x: int, y: int, z: int, r: int):
         self.lbl_joystick_axes.setText(f"Kendali Live: X:{x:+4d} | Y:{y:+4d} | Z:{z:4d} | R:{r:+4d}")
 
-    def _on_connect_toggled(self, checked):
-        if checked:
-            # Ambil IP address dari combobox / input manual
-            raw_text = self.combo_target.currentText().strip()
-            # Bersihkan jika ada tambahan keterangan setelah spasi
-            ip_str = raw_text.split(" ")[0].strip()
-            
-            self.btn_connect.setText("CONNECTING TO JETSON...")
-            self.sig_connect_requested.emit(ip_str, 0)  # Baudrate 0 karena LAN/WiFi
+    def _on_auto_toggled(self, checked: bool):
+        self.set_auto_mode_state(checked)
+        self.sig_auto_mode_toggled.emit(checked)
+
+    def set_auto_mode_state(self, is_auto: bool):
+        self._auto_mode = is_auto
+        self.btn_auto_toggle.setChecked(is_auto)
+        if is_auto:
+            self.btn_auto_toggle.setText("MODE AUTONOMOUS (VISION)")
+            self.lbl_auto_mode.setText(" Status Kendali: AUTONOMOUS / VISION")
+            self.lbl_auto_mode.setStyleSheet("font-size: 11px; color: #e67e22; font-weight: bold;")
         else:
-            self.sig_disconnect_requested.emit()
+            self.btn_auto_toggle.setText("MODE MANUAL (JOYSTICK)")
+            self.lbl_auto_mode.setText(" Status Kendali: MANUAL JOYSTICK")
+            self.lbl_auto_mode.setStyleSheet("font-size: 11px; color: #40bf6a; font-weight: bold;")
 
     def _on_arm_toggled(self, checked):
         if checked:
@@ -170,19 +166,16 @@ class ControlPanel(QWidget):
 
     def set_connected_state(self, connected: bool):
         if connected:
-            self.btn_connect.setChecked(True)
-            self.btn_connect.setText("DISCONNECT JETSON")
             self.btn_arm.setEnabled(True)
             for btn in self._mode_buttons:
                 btn.setEnabled(True)
         else:
-            self.btn_connect.setChecked(False)
-            self.btn_connect.setText("CONNECT TO JETSON")
             self.btn_arm.setChecked(False)
             self.btn_arm.setText("DISARMED (CLICK TO ARM)")
             self.btn_arm.setEnabled(False)
             for btn in self._mode_buttons:
                 btn.setEnabled(False)
+
 
     def set_armed_state(self, armed: bool):
         self.btn_arm.setChecked(armed)

@@ -13,14 +13,14 @@
             "scale": 1.0
         },
         "yaw_r": {
-            "axis": 3,
+            "axis": 2,
             "invert": false,
             "deadzone": 0.08,
             "scale": 1.0
         },
         "depth_z": {
-            "axis": 4,
-            "invert": true,
+            "axis": 3,
+            "invert": false,
             "deadzone": 0.08,
             "scale": 1.0
         }
@@ -28,12 +28,13 @@
     "buttons": {
         "arm": 7,
         "disarm": 6,
-        "depth_up": 5,
+        "depth_up": -1,
         "depth_down": 4,
         "mode_manual": -1,
         "mode_stabilize": -1,
         "mode_depth_hold": -1,
-        "lights_toggle": -1
+        "auto_toggle": -1,
+        "lights_toggle": 5
     },
-    "hat_depth": true
+    "hat_depth": false
 }

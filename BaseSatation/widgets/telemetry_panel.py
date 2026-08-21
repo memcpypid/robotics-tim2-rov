@@ -7,103 +7,97 @@ from PySide6.QtCore import Qt
 
 class TelemetryPanel(QWidget):
     """
-    Panel Telemetri Digital Base Station ROV (Kedalaman dari permukaan, Ketinggian dari dasar kolam, Baterai, Status Mode & Arming).
+    Panel Telemetri Digital Base Station ROV (Kedalaman, Altimeter, Baterai, & Attitude 6-DOF).
+    Disatukan dalam 1 Panel Utama yang Rapi & Estetis.
     """
     def __init__(self, parent=None):
         super().__init__(parent)
         self._init_ui()
 
     def _init_ui(self):
-        main_layout = QHBoxLayout(self)
+        main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(12)
+        main_layout.setSpacing(0)
 
-        # 1. Left column: depth_group
-        depth_group = QGroupBox("DEPTH & ALTIMETER")
-        depth_layout = QVBoxLayout(depth_group)
-        depth_layout.setContentsMargins(12, 18, 12, 12)
-        depth_layout.setSpacing(10)
+        # 1. Single Unified GroupBox
+        group = QGroupBox("ROV TELEMETRY, DEPTH & POWER STATUS")
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(10, 16, 10, 10)
+        layout.setSpacing(8)
 
-        # Kedalaman dari Permukaan
-        box_depth = QVBoxLayout()
-        box_depth.addWidget(QLabel("Kedalaman Permukaan:"))
+        # Grid Atas: Depth, Altimeter & Battery
+        grid = QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(14)
+        grid.setVerticalSpacing(4)
+
+        # Row 0: Depth & Battery Voltage
+        grid.addWidget(QLabel("Kedalaman:"), 0, 0)
         self.lbl_depth_val = QLabel("0.00 m")
-        self.lbl_depth_val.setObjectName("value_label")
-        self.lbl_depth_val.setAlignment(Qt.AlignCenter)
-        self.lbl_depth_val.setStyleSheet("color: #00e5ff; font-weight: bold; font-size: 24px;")
-        box_depth.addWidget(self.lbl_depth_val)
-        depth_layout.addLayout(box_depth)
+        self.lbl_depth_val.setStyleSheet("color: #00e5ff; font-weight: bold; font-size: 16px;")
+        grid.addWidget(self.lbl_depth_val, 0, 1)
 
-        # Ketinggian dari Dasar Kolam (Bottom Altimeter)
-        box_alt = QVBoxLayout()
-        box_alt.addWidget(QLabel("Tinggi dari Dasar Kolam:"))
-        self.lbl_alt_val = QLabel("0.00 m")
-        self.lbl_alt_val.setObjectName("value_label")
-        self.lbl_alt_val.setAlignment(Qt.AlignCenter)
-        self.lbl_alt_val.setStyleSheet("color: #40bf6a; font-weight: bold; font-size: 24px;")
-        box_alt.addWidget(self.lbl_alt_val)
-        depth_layout.addLayout(box_alt)
-
-        self.bar_alt = QProgressBar()
-        self.bar_alt.setRange(0, 300)  # max 300 cm / 3 m clearance
-        self.bar_alt.setValue(0)
-        self.bar_alt.setFormat("Altimeter Clearance: %v cm")
-        self.bar_alt.setStyleSheet("""
-            QProgressBar { background-color: #121824; border: 1px solid #2d3e5c; border-radius: 5px; text-align: center; color: #ffffff; font-size: 11px; }
-            QProgressBar::chunk { background-color: #40bf6a; border-radius: 4px; }
-        """)
-        depth_layout.addWidget(self.bar_alt)
-
-        main_layout.addWidget(depth_group, stretch=1)
-
-        # 2. Right column stacked: power_group & rpy_group
-        right_layout = QVBoxLayout()
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(12)
-
-        power_group = QGroupBox("BATTERY & POWER")
-        power_layout = QVBoxLayout(power_group)
-        power_layout.setContentsMargins(12, 18, 12, 12)
-        power_layout.setSpacing(10)
-
-        bat_layout = QHBoxLayout()
-        bat_layout.addWidget(QLabel("Tegangan Baterai:"))
-        bat_layout.addStretch()
+        grid.addWidget(QLabel("Tegangan Baterai:"), 0, 2)
         self.lbl_bat_val = QLabel("0.0 V")
-        self.lbl_bat_val.setObjectName("value_label")
-        bat_layout.addWidget(self.lbl_bat_val)
-        power_layout.addLayout(bat_layout)
+        self.lbl_bat_val.setStyleSheet("color: #ffd54f; font-weight: bold; font-size: 16px;")
+        grid.addWidget(self.lbl_bat_val, 0, 3)
+
+        # Row 1: Altimeter & Battery Progress Bar
+        grid.addWidget(QLabel("Tinggi Dasar:"), 1, 0)
+        self.lbl_alt_val = QLabel("0.00 m")
+        self.lbl_alt_val.setStyleSheet("color: #40bf6a; font-weight: bold; font-size: 16px;")
+        grid.addWidget(self.lbl_alt_val, 1, 1)
 
         self.bar_battery = QProgressBar()
         self.bar_battery.setRange(0, 100)
         self.bar_battery.setValue(0)
+        self.bar_battery.setFixedHeight(18)
         self.bar_battery.setFormat("Baterai: %p%")
-        power_layout.addWidget(self.bar_battery)
+        self.bar_battery.setStyleSheet("""
+            QProgressBar { background-color: #121824; border: 1px solid #2d3e5c; border-radius: 4px; text-align: center; color: #ffffff; font-size: 10px; font-weight: bold; }
+            QProgressBar::chunk { background-color: #ffd54f; border-radius: 3px; }
+        """)
+        grid.addWidget(self.bar_battery, 1, 2, 1, 2)
 
-        right_layout.addWidget(power_group)
+        # Row 2: Altimeter Clearance Bar
+        self.bar_alt = QProgressBar()
+        self.bar_alt.setRange(0, 300)  # max 300 cm / 3 m clearance
+        self.bar_alt.setValue(0)
+        self.bar_alt.setFixedHeight(18)
+        self.bar_alt.setFormat("Altimeter Clearance: %v cm")
+        self.bar_alt.setStyleSheet("""
+            QProgressBar { background-color: #121824; border: 1px solid #2d3e5c; border-radius: 4px; text-align: center; color: #ffffff; font-size: 10px; font-weight: bold; }
+            QProgressBar::chunk { background-color: #40bf6a; border-radius: 3px; }
+        """)
+        grid.addWidget(self.bar_alt, 2, 0, 1, 4)
 
-        rpy_group = QGroupBox("ATTITUDE (6-DOF)")
-        rpy_layout = QGridLayout(rpy_group)
-        rpy_layout.setContentsMargins(12, 18, 12, 12)
-        rpy_layout.setSpacing(10)
+        layout.addLayout(grid)
 
-        rpy_layout.addWidget(QLabel("Roll:"), 0, 0)
-        self.lbl_roll = QLabel("0.0°")
-        self.lbl_roll.setObjectName("value_label")
-        rpy_layout.addWidget(self.lbl_roll, 0, 1)
+        # Baris Bawah: Attitude RPY 6-DOF
+        rpy_box = QHBoxLayout()
+        rpy_box.setContentsMargins(0, 4, 0, 0)
+        rpy_box.setSpacing(12)
 
-        rpy_layout.addWidget(QLabel("Pitch:"), 1, 0)
-        self.lbl_pitch = QLabel("0.0°")
-        self.lbl_pitch.setObjectName("value_label")
-        rpy_layout.addWidget(self.lbl_pitch, 1, 1)
+        lbl_rpy_title = QLabel("ATTITUDE 6-DOF:")
+        lbl_rpy_title.setStyleSheet("font-size: 11px; font-weight: bold; color: #899cb8;")
+        rpy_box.addWidget(lbl_rpy_title)
 
-        rpy_layout.addWidget(QLabel("Yaw:"), 2, 0)
-        self.lbl_yaw = QLabel("0.0°")
-        self.lbl_yaw.setObjectName("value_label")
-        rpy_layout.addWidget(self.lbl_yaw, 2, 1)
+        self.lbl_roll = QLabel("Roll: +0.0°")
+        self.lbl_roll.setStyleSheet("color: #00e5ff; font-weight: bold; font-size: 12px;")
+        rpy_box.addWidget(self.lbl_roll)
 
-        right_layout.addWidget(rpy_group)
-        main_layout.addLayout(right_layout, stretch=1)
+        self.lbl_pitch = QLabel("Pitch: +0.0°")
+        self.lbl_pitch.setStyleSheet("color: #00e5ff; font-weight: bold; font-size: 12px;")
+        rpy_box.addWidget(self.lbl_pitch)
+
+        self.lbl_yaw = QLabel("Yaw: 0.0°")
+        self.lbl_yaw.setStyleSheet("color: #40bf6a; font-weight: bold; font-size: 12px;")
+        rpy_box.addWidget(self.lbl_yaw)
+
+        rpy_box.addStretch()
+        layout.addLayout(rpy_box)
+
+        main_layout.addWidget(group)
 
     def update_telemetry(self, state):
         """Memperbarui UI panel dengan data dari object ROVState."""
@@ -115,16 +109,16 @@ class TelemetryPanel(QWidget):
         self.bar_alt.setValue(min(300, alt_cm))
         if 0 < state.altitude_m < 0.3:
             # Peringatan dekat dasar kolam
-            self.lbl_alt_val.setStyleSheet("color: #ff3b30; font-weight: bold; font-size: 24px;")
+            self.lbl_alt_val.setStyleSheet("color: #ff3b30; font-weight: bold; font-size: 16px;")
             self.bar_alt.setStyleSheet("""
-                QProgressBar { background-color: #2e1212; border: 1px solid #ff3b30; border-radius: 5px; text-align: center; color: #ffffff; font-size: 11px; }
-                QProgressBar::chunk { background-color: #ff3b30; border-radius: 4px; }
+                QProgressBar { background-color: #2e1212; border: 1px solid #ff3b30; border-radius: 4px; text-align: center; color: #ffffff; font-size: 10px; font-weight: bold; }
+                QProgressBar::chunk { background-color: #ff3b30; border-radius: 3px; }
             """)
         else:
-            self.lbl_alt_val.setStyleSheet("color: #40bf6a; font-weight: bold; font-size: 24px;")
+            self.lbl_alt_val.setStyleSheet("color: #40bf6a; font-weight: bold; font-size: 16px;")
             self.bar_alt.setStyleSheet("""
-                QProgressBar { background-color: #121824; border: 1px solid #2d3e5c; border-radius: 5px; text-align: center; color: #ffffff; font-size: 11px; }
-                QProgressBar::chunk { background-color: #40bf6a; border-radius: 4px; }
+                QProgressBar { background-color: #121824; border: 1px solid #2d3e5c; border-radius: 4px; text-align: center; color: #ffffff; font-size: 10px; font-weight: bold; }
+                QProgressBar::chunk { background-color: #40bf6a; border-radius: 3px; }
             """)
 
         # Battery
@@ -133,6 +127,8 @@ class TelemetryPanel(QWidget):
         self.bar_battery.setValue(bat_pct)
 
         # RPY
-        self.lbl_roll.setText(f"{state.roll:+.1f}°")
-        self.lbl_pitch.setText(f"{state.pitch:+.1f}°")
-        self.lbl_yaw.setText(f"{state.yaw:.1f}°")
+        self.lbl_roll.setText(f"Roll: {state.roll:+.1f}°")
+        self.lbl_pitch.setText(f"Pitch: {state.pitch:+.1f}°")
+        self.lbl_yaw.setText(f"Yaw: {state.yaw:.1f}°")
+
+

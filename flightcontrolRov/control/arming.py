@@ -18,7 +18,7 @@ class ROVArmingControl:
         return self.client.send_command_long(
             mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
             param1=1.0,  # 1 = ARM
-            param2=param2
+            param2=0.0
         )
 
     def disarm(self) -> bool:

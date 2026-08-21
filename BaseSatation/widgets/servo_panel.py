@@ -30,6 +30,10 @@ XBOX_BUTTON_NAMES = {
     8: "LS (Stick Kiri Tekan)",
     9: "RS (Stick Kanan Tekan)",
     10: "Xbox / Guide",
+    100: "D-Pad ATAS (Up)",
+    101: "D-Pad BAWAH (Down)",
+    102: "D-Pad KIRI (Left)",
+    103: "D-Pad KANAN (Right)",
 }
 
 class JoystickTesterWidget(QWidget):
@@ -181,6 +185,24 @@ class JoystickTesterWidget(QWidget):
             num_buttons = self._joystick.get_numbuttons()
             current = [self._joystick.get_button(i) for i in range(num_buttons)]
 
+            # Support D-Pad (Hat) as virtual buttons 100-103
+            num_hats = self._joystick.get_numhats()
+            hat_buttons = {100: False, 101: False, 102: False, 103: False}
+            if num_hats > 0:
+                hat = self._joystick.get_hat(0)
+                hat_buttons[100] = (hat[1] == 1)   # Up
+                hat_buttons[101] = (hat[1] == -1)  # Down
+                hat_buttons[102] = (hat[0] == -1)  # Left
+                hat_buttons[103] = (hat[0] == 1)   # Right
+            
+            # Extend current list to accommodate up to index 103
+            if len(current) <= 103:
+                current.extend([False] * (104 - len(current)))
+            for k, v in hat_buttons.items():
+                current[k] = v
+                
+            num_buttons = len(current)
+
             # Tombol yang baru SAJA ditekan (single press detection)
             newly_pressed = []
             for idx in range(num_buttons):
@@ -225,6 +247,9 @@ class ServoPanel(QWidget):
 
         # Tab internal: Servo Config & Button Finder
         self.inner_tabs = QTabWidget()
+        self.inner_tabs.wheelEvent = lambda event: event.ignore()
+        if hasattr(self.inner_tabs, "tabBar"):
+            self.inner_tabs.tabBar().wheelEvent = lambda event: event.ignore()
 
         # === TAB 1: KONFIGURASI SERVO ===
         servo_tab = QWidget()
@@ -323,6 +348,7 @@ class ServoPanel(QWidget):
         # Row 3: Mode
         layout.addWidget(QLabel("Mode:"), 3, 0)
         cb_mode = QComboBox()
+        cb_mode.wheelEvent = lambda event: event.ignore()
         cb_mode.addItems(["toggle", "3-state", "incremental", "follow_roll", "follow_pitch", "follow_yaw"])
         cb_mode.setCurrentText(data.get("mode", "toggle"))
         layout.addWidget(cb_mode, 3, 1)

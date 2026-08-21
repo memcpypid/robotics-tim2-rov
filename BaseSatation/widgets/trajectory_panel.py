@@ -26,6 +26,7 @@ class TrajectoryCanvas(QFrame):
         self.scale = 25.0  # piksel per meter
         self.offset_x = 0.0
         self.offset_y = 0.0
+        self.auto_center = True  # Selalu posisikan ROV di tengah kanvas
 
     def update_position(self, x: float, y: float, z: float, yaw: float):
         """Memperbarui posisi terkini dan menambahkan ke jejak lintasan bila berpindah > 0.05 m."""
@@ -44,6 +45,11 @@ class TrajectoryCanvas(QFrame):
         self.current_y = y
         self.current_z = z
         self.current_yaw = yaw
+
+        if self.auto_center:
+            self.offset_x = -self.current_y * self.scale
+            self.offset_y = self.current_x * self.scale
+
         self.update()
 
     def reset_trajectory(self):
@@ -58,16 +64,23 @@ class TrajectoryCanvas(QFrame):
 
     def zoom_in(self):
         self.scale = min(200.0, self.scale * 1.25)
-        self.update()
+        if self.auto_center:
+            self.center_on_rov()
+        else:
+            self.update()
 
     def zoom_out(self):
         self.scale = max(5.0, self.scale * 0.8)
-        self.update()
+        if self.auto_center:
+            self.center_on_rov()
+        else:
+            self.update()
 
     def center_on_rov(self):
         self.offset_x = -self.current_y * self.scale
-        self.offset_y = -self.current_x * self.scale
+        self.offset_y = self.current_x * self.scale
         self.update()
+
 
     def paintEvent(self, event):
         super().paintEvent(event)

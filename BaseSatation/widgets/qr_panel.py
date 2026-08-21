@@ -124,7 +124,7 @@ class QRImageCanvas(QFrame):
 
 class QRPanel(QWidget):
     """
-    Panel Frame Capture QR Code & Hasil Pembacaan QR Code.
+    Panel Frame Capture QR Code & Hasil Pembacaan QR Code (Mode Ringkas / Compact).
     """
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -134,39 +134,36 @@ class QRPanel(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
-        group = QGroupBox("QR CODE CAPTURE & DECODER")
+        group = QGroupBox("QR CODE DECODER")
         layout = QVBoxLayout(group)
-        layout.setSpacing(10)
+        layout.setContentsMargins(6, 14, 6, 6)
+        layout.setSpacing(4)
 
         # 1. Canvas / Frame Capture QR
         self.canvas = QRImageCanvas()
-        layout.addWidget(self.canvas, stretch=2)
+        layout.addWidget(self.canvas, stretch=1)
 
         # 2. Hasil Pembacaan QR Code
-        lbl_result_title = QLabel("Hasil Pembacaan QR Code (Isi Data):")
-        lbl_result_title.setStyleSheet("font-size: 13px; font-weight: bold; color: #a6e3e9;")
-        layout.addWidget(lbl_result_title)
-
         self.txt_result = QLineEdit()
         self.txt_result.setReadOnly(True)
-        self.txt_result.setPlaceholderText("Belum ada QR Code terdeteksi...")
-        self.txt_result.setStyleSheet("background-color: #0a0e14; border: 1px solid #00e5ff; font-size: 14px; font-weight: bold; color: #40bf6a; padding: 8px;")
+        self.txt_result.setPlaceholderText("Menunggu QR Code...")
+        self.txt_result.setStyleSheet("background-color: #0a0e14; border: 1px solid #00e5ff; font-size: 12px; font-weight: bold; color: #40bf6a; padding: 4px;")
         layout.addWidget(self.txt_result)
 
         # 3. Waktu Deteksi Info & Tombol
         info_layout = QHBoxLayout()
-        self.lbl_time = QLabel("Waktu Scan: - | Sumber: -")
-        self.lbl_time.setStyleSheet("font-size: 11px; color: #899cb8;")
+        self.lbl_time = QLabel("Waktu: -")
+        self.lbl_time.setStyleSheet("font-size: 10px; color: #899cb8;")
         info_layout.addWidget(self.lbl_time)
         info_layout.addStretch()
 
-        self.btn_copy = QPushButton("COPY DATA")
-        self.btn_copy.setStyleSheet("padding: 4px 10px; font-size: 11px;")
+        self.btn_copy = QPushButton("COPY")
+        self.btn_copy.setStyleSheet("padding: 2px 6px; font-size: 10px;")
         self.btn_copy.clicked.connect(self._copy_data)
         info_layout.addWidget(self.btn_copy)
 
         self.btn_clear = QPushButton("CLEAR")
-        self.btn_clear.setStyleSheet("padding: 4px 10px; font-size: 11px;")
+        self.btn_clear.setStyleSheet("padding: 2px 6px; font-size: 10px;")
         self.btn_clear.clicked.connect(self._clear_data)
         info_layout.addWidget(self.btn_clear)
 

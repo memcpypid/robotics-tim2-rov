@@ -8,6 +8,7 @@ from .qr_panel import QRPanel
 from .trajectory_panel import TrajectoryPanel
 from .design_panel import DesignROVPanel
 from .motor_panel import MotorPanel
+from .connection_config_panel import ConnectionConfigPanel
 
 __all__ = [
     "AttitudeIndicator",
@@ -19,5 +20,7 @@ __all__ = [
     "QRPanel",
     "TrajectoryPanel",
     "DesignROVPanel",
-    "MotorPanel"
+    "MotorPanel",
+    "ConnectionConfigPanel"
 ]
+

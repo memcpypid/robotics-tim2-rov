@@ -31,6 +31,8 @@ class JoystickWorker(QObject):
     sig_disarm_toggled   = Signal()
     sig_set_servo        = Signal(int, int)
     sig_mode_changed     = Signal(str)
+    sig_auto_toggled     = Signal()
+
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -204,6 +206,22 @@ class JoystickWorker(QObject):
 
             current_buttons = [self._joystick.get_button(i) for i in range(num_buttons)]
 
+            # ── Support D-Pad (Hat) as virtual buttons 100-103 ──
+            hat_buttons = {100: False, 101: False, 102: False, 103: False}
+            if num_hats > 0:
+                hat = self._joystick.get_hat(0)
+                hat_buttons[100] = (hat[1] == 1)   # Up
+                hat_buttons[101] = (hat[1] == -1)  # Down
+                hat_buttons[102] = (hat[0] == -1)  # Left
+                hat_buttons[103] = (hat[0] == 1)   # Right
+            
+            if len(current_buttons) <= 103:
+                current_buttons.extend([False] * (104 - len(current_buttons)))
+            for k, v in hat_buttons.items():
+                current_buttons[k] = v
+                
+            num_buttons = len(current_buttons)
+
             # ── Tombol depth override ──
             bi_up   = self._btn_idx("depth_up")
             bi_down = self._btn_idx("depth_down")
@@ -320,3 +338,6 @@ class JoystickWorker(QObject):
                 elif func_key in ("mode_manual", "mode_stabilize", "mode_depth_hold"):
                     mode_name = func_key.replace("mode_", "").upper().replace("_", " ")
                     self.sig_mode_changed.emit(mode_name)
+                elif func_key == "auto_toggle":
+                    self.sig_auto_toggled.emit()
+
