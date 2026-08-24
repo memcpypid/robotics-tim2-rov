@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit
+    QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit, QMessageBox
 )
 from PySide6.QtCore import Qt, Signal
 
@@ -16,6 +16,7 @@ class ControlPanel(QWidget):
     sig_joystick_enable_toggled = Signal(bool)# True untuk enable joystick, False untuk disable
     sig_auto_mode_toggled = Signal(bool)     # True = Autonomous Mode, False = Manual
     sig_light_toggle_requested = Signal()    # Emit saat tombol toggle lampu diklik
+    sig_shutdown_requested = Signal()        # Emit saat tombol shutdown diklik
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -113,6 +114,11 @@ class ControlPanel(QWidget):
         self.btn_toggle_light.setStyleSheet("background-color: #2c3e50; color: #f1c40f; font-weight: bold; padding: 10px; border-radius: 5px;")
         self.btn_toggle_light.clicked.connect(self.sig_light_toggle_requested.emit)
         acc_layout.addWidget(self.btn_toggle_light)
+        
+        self.btn_shutdown = QPushButton("SHUTDOWN ROV")
+        self.btn_shutdown.setStyleSheet("background-color: #7a1c1c; color: #ffffff; font-weight: bold; padding: 10px; border-radius: 5px; border: 1px solid #ff4d4d;")
+        self.btn_shutdown.clicked.connect(self._on_shutdown_clicked)
+        acc_layout.addWidget(self.btn_shutdown)
 
         main_layout.addWidget(acc_group)
 
@@ -139,6 +145,14 @@ class ControlPanel(QWidget):
         joy_layout.addWidget(self.lbl_joystick_axes)
 
         main_layout.addWidget(joy_group)
+
+    def _on_shutdown_clicked(self):
+        reply = QMessageBox.question(self, 'Konfirmasi Shutdown', 
+                                     'Apakah Anda yakin ingin MEMATIKAN (Shutdown) sistem operasi Jetson Nano pada ROV secara remote?\n\nKoneksi akan langsung terputus dan ROV tidak bisa dinyalakan lagi kecuali dengan menekan tombol power fisiknya.',
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        
+        if reply == QMessageBox.Yes:
+            self.sig_shutdown_requested.emit()
 
     def set_joystick_status(self, connected: bool, device_name: str):
         if connected:

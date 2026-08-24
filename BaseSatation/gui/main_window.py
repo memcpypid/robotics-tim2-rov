@@ -195,6 +195,7 @@ class MainWindow(QMainWindow):
         self.control_panel.sig_arm_requested.connect(self.worker.set_armed)
         self.control_panel.sig_mode_requested.connect(self.worker.set_mode)
         self.control_panel.sig_light_toggle_requested.connect(self.worker.toggle_lights)
+        self.control_panel.sig_shutdown_requested.connect(self.worker.send_shutdown)
 
         self.control_panel.sig_auto_mode_toggled.connect(self._on_auto_mode_toggled)
         self.conn_config_panel.sig_auto_mode_toggled.connect(self._on_auto_mode_toggled)

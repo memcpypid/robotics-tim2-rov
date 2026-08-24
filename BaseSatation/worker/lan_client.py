@@ -199,6 +199,9 @@ class LANClientWorker(QObject):
     def send_toggle_lights(self):
         self.send_command({"cmd": "TOGGLE_LIGHTS"})
 
+    def send_shutdown(self):
+        self.send_command({"cmd": "SHUTDOWN"})
+
     def _listen_telemetry_loop(self):
         """Mendengarkan paket telemetri JSON dari Jetson Nano / ROV Backend."""
         if not self._telemetry_sock:

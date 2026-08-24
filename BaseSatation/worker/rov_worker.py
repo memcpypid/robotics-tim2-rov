@@ -184,6 +184,12 @@ class ROVWorker(QObject):
             if hasattr(self.rov, 'toggle_lights'):
                 self.rov.toggle_lights()
 
+    def send_shutdown(self):
+        if self.lan_client and self.lan_client.is_lan_connected:
+            self.lan_client.send_shutdown()
+        else:
+            self.sig_log.emit("Gagal mengirim perintah Shutdown: ROV LAN belum terhubung!", "ERROR")
+
     def _poll_telemetry(self):
         if self.rov and self.rov.is_connected():
             try:

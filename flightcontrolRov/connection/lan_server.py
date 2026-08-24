@@ -2,6 +2,7 @@ import socket
 import json
 import threading
 import time
+import os
 from typing import Optional, Dict, Any
 
 from models.state import StateManager
@@ -171,6 +172,11 @@ class ROVLANServer:
                     self.rov.toggle_lights()
                     return {"status": "OK", "cmd": "TOGGLE_LIGHTS"}
                 return {"status": "ERROR", "message": "Fungsi toggle_lights tidak tersedia di ROVController"}
+                
+            elif cmd == "SHUTDOWN":
+                print("[LANServer] Menerima perintah SHUTDOWN dari Base Station! Mematikan Jetson Nano...")
+                os.system("shutdown -h now")
+                return {"status": "OK", "cmd": "SHUTDOWN"}
 
             elif cmd == "SET_MANUAL":
                 print("[LANServer] Mengembalikan Mode ke MANUAL JOYSTICK")
