@@ -24,6 +24,14 @@ import argparse
 import logging
 from typing import Optional
 
+try:
+    import Jetson.GPIO as GPIO
+    GPIO_AVAILABLE = True
+    print("[GPIO] Jetson.GPIO library loaded.")
+except ImportError:
+    GPIO_AVAILABLE = False
+    print("[GPIO] Jetson.GPIO library NOT found. GPIO features disabled.")
+
 from models.state import ROVState, StateManager
 from connection.mav_client import MAVClient
 from connection.lan_server import ROVLANServer
@@ -49,6 +57,19 @@ class ROVController:
         self.arming = ROVArmingControl(self.client)
         self.modes = ROVModeControl(self.client)
         self.motion = ROVMotionControl(self.client)
+
+        # 4. Inisialisasi GPIO untuk aksesoris (Relay Lampu)
+        self.light_pin = 5
+        self.light_state = False
+        if GPIO_AVAILABLE:
+            try:
+                # Suppress mode warnings to avoid terminal spam if already set
+                GPIO.setwarnings(False)
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setup(self.light_pin, GPIO.OUT)
+                GPIO.output(self.light_pin, GPIO.LOW)
+            except Exception as e:
+                print(f"[GPIO ERROR] Gagal setup pin {self.light_pin}: {e}")
 
     def start_lan_server(self, client_ip: str = "127.0.0.1", telemetry_port: int = 9000, command_port: int = 9001):
         """Memulai LAN Bridge Server untuk streaming data & menerima perintah dari GUI Base Station."""
@@ -120,10 +141,23 @@ class ROVController:
         """Mengirim override PWM manual ke motor/aktuator ROV (1000-2000)."""
         return self.motion.send_rc_override(channels_pwm)
 
+    def toggle_lights(self):
+        """Menyala-matikan lampu lewat modul relay (GPIO 05)"""
+        self.light_state = not self.light_state
+        if GPIO_AVAILABLE:
+            try:
+                state = GPIO.HIGH if self.light_state else GPIO.LOW
+                GPIO.output(self.light_pin, state)
+                print(f"[ROVController] Lampu {'MENYALA' if self.light_state else 'MATI'} (GPIO {self.light_pin}).")
+            except Exception as e:
+                print(f"[ROVController] ERROR Toggle Lampu: {e}")
+        else:
+            print(f"[ROVController - SIMULATION] Lampu {'MENYALA' if self.light_state else 'MATI'} (GPIO tidak tersedia).")
+
 
 def _main_test_cli():
     parser = argparse.ArgumentParser(description="Basic ROV Flight Control Controller (ArduSub)")
-    parser.add_argument("--connect", default="COM13", help="String koneksi MAVLink (contoh: /dev/ttyACM0 atau udp:127.0.0.1:14550)")
+    parser.add_argument("--connect", default="/dev/ttyACM0", help="String koneksi MAVLink (contoh: /dev/ttyACM0 atau udp:127.0.0.1:14550)")
     parser.add_argument("--baud", type=int, default=115200, help="Baudrate serial (Cube Black default: 115200)")
     parser.add_argument("--lan", action="store_true", default=True, help="Aktifkan LAN Bridge Server (JSON over UDP)")
     parser.add_argument("--client-ip", default="127.0.0.1", help="IP tujuan Base Station GUI (default: 127.0.0.1 untuk localhost)")

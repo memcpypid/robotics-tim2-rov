@@ -165,6 +165,12 @@ class ROVLANServer:
                 # Ubah mode FC ke GUIDED atau STABILIZE (dengan penguncian input manual)
                 success = self.rov.set_mode("GUIDED") or self.rov.set_mode("STABILIZE")
                 return {"status": "OK" if success else "ERROR", "cmd": "SET_AUTO", "success": success}
+                
+            elif cmd == "TOGGLE_LIGHTS":
+                if hasattr(self.rov, 'toggle_lights'):
+                    self.rov.toggle_lights()
+                    return {"status": "OK", "cmd": "TOGGLE_LIGHTS"}
+                return {"status": "ERROR", "message": "Fungsi toggle_lights tidak tersedia di ROVController"}
 
             elif cmd == "SET_MANUAL":
                 print("[LANServer] Mengembalikan Mode ke MANUAL JOYSTICK")

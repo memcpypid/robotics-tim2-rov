@@ -177,6 +177,13 @@ class ROVWorker(QObject):
             except Exception:
                 pass
 
+    def toggle_lights(self):
+        if self.lan_client and self.lan_client.is_lan_connected:
+            self.lan_client.send_toggle_lights()
+        elif self.rov and self.rov.is_connected():
+            if hasattr(self.rov, 'toggle_lights'):
+                self.rov.toggle_lights()
+
     def _poll_telemetry(self):
         if self.rov and self.rov.is_connected():
             try:

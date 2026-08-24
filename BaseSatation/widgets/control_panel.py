@@ -15,6 +15,7 @@ class ControlPanel(QWidget):
     sig_mode_requested = Signal(str)          # ("MANUAL", "STABILIZE", "DEPTH_HOLD")
     sig_joystick_enable_toggled = Signal(bool)# True untuk enable joystick, False untuk disable
     sig_auto_mode_toggled = Signal(bool)     # True = Autonomous Mode, False = Manual
+    sig_light_toggle_requested = Signal()    # Emit saat tombol toggle lampu diklik
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -102,6 +103,18 @@ class ControlPanel(QWidget):
         self._mode_buttons = [self.btn_mode_manual, self.btn_mode_stab, self.btn_mode_depth]
 
         main_layout.addWidget(mode_group)
+
+        # 3.5 Groupbox Accessories
+        acc_group = QGroupBox("ROV ACCESSORIES")
+        acc_layout = QVBoxLayout(acc_group)
+        acc_layout.setContentsMargins(12, 18, 12, 12)
+        
+        self.btn_toggle_light = QPushButton("LIGHTS")
+        self.btn_toggle_light.setStyleSheet("background-color: #2c3e50; color: #f1c40f; font-weight: bold; padding: 10px; border-radius: 5px;")
+        self.btn_toggle_light.clicked.connect(self.sig_light_toggle_requested.emit)
+        acc_layout.addWidget(self.btn_toggle_light)
+
+        main_layout.addWidget(acc_group)
 
 
         # 4. Groupbox USB Joystick / Gamepad Control
