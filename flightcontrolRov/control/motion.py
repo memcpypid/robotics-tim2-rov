@@ -134,3 +134,28 @@ class ROVMotionControl:
             except Exception as e:
                 print(f"[ROVMotionControl Error] Gagal mengatur servo {pin}: {e}")
                 return False
+
+    def set_relay(self, relay_num: int, state: bool) -> bool:
+        """
+        Mengontrol relay di Pixhawk (MAV_CMD_DO_SET_RELAY).
+        :param relay_num: Nomor relay (biasanya 0, 1, 2, 3)
+        :param state: True untuk ON (1), False untuk OFF (0)
+        """
+        if not self.client.is_connected():
+            return False
+
+        with self.client._lock:
+            try:
+                self.client.master.mav.command_long_send(
+                    self.client.master.target_system,
+                    self.client.master.target_component,
+                    mavutil.mavlink.MAV_CMD_DO_SET_RELAY,
+                    0,            # confirmation
+                    relay_num,    # param1: relay number
+                    1 if state else 0, # param2: 1=on, 0=off
+                    0, 0, 0, 0, 0 # param3-7 unused
+                )
+                return True
+            except Exception as e:
+                print(f"[ROVMotionControl Error] Gagal mengatur relay {relay_num}: {e}")
+                return False

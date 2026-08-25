@@ -142,17 +142,29 @@ class ROVController:
         return self.motion.send_rc_override(channels_pwm)
 
     def toggle_lights(self):
-        """Menyala-matikan lampu lewat modul relay (GPIO 05)"""
+        """Menyala-matikan lampu lewat modul relay (GPIO 05) dan Pixhawk Relay 0"""
         self.light_state = not self.light_state
+        
+        # 1. Coba trigger Pixhawk Relay 0 via MAVLink (Default ArduSub)
+        success_mavlink = False
+        try:
+            success_mavlink = self.motion.set_relay(0, self.light_state)
+            if success_mavlink:
+                print(f"[ROVController] Lampu {'MENYALA' if self.light_state else 'MATI'} (Pixhawk Relay 0).")
+        except Exception as e:
+            print(f"[ROVController] ERROR Toggle Pixhawk Relay: {e}")
+            
+        # 2. Coba trigger Jetson GPIO (jika tersedia dan dijalankan di Jetson)
         if GPIO_AVAILABLE:
             try:
                 state = GPIO.HIGH if self.light_state else GPIO.LOW
                 GPIO.output(self.light_pin, state)
-                print(f"[ROVController] Lampu {'MENYALA' if self.light_state else 'MATI'} (GPIO {self.light_pin}).")
+                print(f"[ROVController] Lampu {'MENYALA' if self.light_state else 'MATI'} (Jetson GPIO {self.light_pin}).")
             except Exception as e:
-                print(f"[ROVController] ERROR Toggle Lampu: {e}")
+                print(f"[ROVController] ERROR Toggle Lampu GPIO: {e}")
         else:
-            print(f"[ROVController - SIMULATION] Lampu {'MENYALA' if self.light_state else 'MATI'} (GPIO tidak tersedia).")
+            if not success_mavlink:
+                print(f"[ROVController - SIMULATION] Lampu {'MENYALA' if self.light_state else 'MATI'} (GPIO tidak tersedia, MAVLink gagal).")
 
 
 def _main_test_cli():
