@@ -109,10 +109,11 @@ class ControlPanel(QWidget):
         acc_group = QGroupBox("ROV ACCESSORIES")
         acc_layout = QVBoxLayout(acc_group)
         acc_layout.setContentsMargins(12, 18, 12, 12)
+        self._light_is_on = False
         
-        self.btn_toggle_light = QPushButton("LIGHTS")
-        self.btn_toggle_light.setStyleSheet("background-color: #2c3e50; color: #f1c40f; font-weight: bold; padding: 10px; border-radius: 5px;")
-        self.btn_toggle_light.clicked.connect(self.sig_light_toggle_requested.emit)
+        self.btn_toggle_light = QPushButton("LIGHTS: OFF")
+        self.btn_toggle_light.setStyleSheet("background-color: #2c3e50; color: #7f8c8d; font-weight: bold; padding: 10px; border-radius: 5px;")
+        self.btn_toggle_light.clicked.connect(self._on_light_toggled)
         acc_layout.addWidget(self.btn_toggle_light)
         
         self.btn_shutdown = QPushButton("SHUTDOWN ROV")
@@ -145,6 +146,16 @@ class ControlPanel(QWidget):
         joy_layout.addWidget(self.lbl_joystick_axes)
 
         main_layout.addWidget(joy_group)
+
+    def _on_light_toggled(self):
+        self._light_is_on = not self._light_is_on
+        if self._light_is_on:
+            self.btn_toggle_light.setText("LIGHTS: ON")
+            self.btn_toggle_light.setStyleSheet("background-color: #f1c40f; color: #2c3e50; font-weight: bold; padding: 10px; border-radius: 5px; border: 2px solid #f39c12;")
+        else:
+            self.btn_toggle_light.setText("LIGHTS: OFF")
+            self.btn_toggle_light.setStyleSheet("background-color: #2c3e50; color: #7f8c8d; font-weight: bold; padding: 10px; border-radius: 5px;")
+        self.sig_light_toggle_requested.emit()
 
     def _on_shutdown_clicked(self):
         reply = QMessageBox.question(self, 'Konfirmasi Shutdown', 

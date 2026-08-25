@@ -226,6 +226,7 @@ class MainWindow(QMainWindow):
         self.joystick_worker.sig_disarm_toggled.connect(lambda: self.worker.set_armed(False))
         self.joystick_worker.sig_set_servo.connect(self.worker.send_set_servo)
         self.joystick_worker.sig_auto_toggled.connect(self._on_joystick_auto_toggled)
+        self.joystick_worker.sig_light_toggled.connect(self.control_panel._on_light_toggled)
         self.servo_panel.sig_config_saved.connect(self.joystick_worker.reload_servo_config)
         self.joystick_mapper.sig_config_saved.connect(self.joystick_worker.reload_joystick_config)
         self.joystick_worker.sig_mode_changed.connect(self.worker.set_mode)

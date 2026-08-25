@@ -32,6 +32,7 @@ class JoystickWorker(QObject):
     sig_set_servo        = Signal(int, int)
     sig_mode_changed     = Signal(str)
     sig_auto_toggled     = Signal()
+    sig_light_toggled    = Signal()
 
 
     def __init__(self, parent=None):
@@ -340,4 +341,7 @@ class JoystickWorker(QObject):
                     self.sig_mode_changed.emit(mode_name)
                 elif func_key == "auto_toggle":
                     self.sig_auto_toggled.emit()
+                elif func_key == "lights_toggle":
+                    # Emit a signal that will toggle lights (we need to define this signal)
+                    self.sig_light_toggled.emit()
 
