@@ -100,6 +100,8 @@ class ROVTelemetrySensor:
         if isinstance(text, bytes):
             text = text.decode('utf-8', errors='ignore')
         
+        print(f"[Pixhawk STATUSTEXT] {text}")
+        
         if "leak" in text.lower():
             print(f"[ALERT - ROV LEAK DETECTED!] {text}")
             self.state_mgr.update(leak_detected=True)

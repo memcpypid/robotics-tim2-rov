@@ -138,7 +138,8 @@ class ROVLANServer:
     def _handle_command(self, cmd_json: Dict[str, Any]) -> Dict[str, Any]:
         """Memproses perintah JSON dan memanggil fungsi di ROVController."""
         cmd = cmd_json.get("cmd", "").upper()
-        # print(f"[LANServer] Perintah diterima dari GUI: {cmd}")
+        if cmd not in ["PING", "PING_STREAM", "MOVE"]:
+            print(f"[LANServer] Perintah diterima dari GUI: {cmd}")
 
         if cmd in ["PING", "PING_STREAM"]:
             return {"status": "OK", "cmd": "PONG", "timestamp": time.time()}

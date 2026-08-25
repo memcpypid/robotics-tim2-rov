@@ -13,7 +13,7 @@ class ROVArmingControl:
         Mengirimkan perintah ARM (menyala/aktifkan motor thruster).
         :param force: Jika True, memaksa arming meskipun ada pre-arm safety check (gunakan hati-hati).
         """
-        print("[ROVArmingControl] Mengirim perintah ARM...")
+        print(f"[ROVArmingControl] Mengirim perintah ARM... (Force: {force}, SysID: {self.client.master.target_system}, CompID: {self.client.master.target_component})")
         param2 = 21196.0 if force else 0.0  # Magic number 21196 untuk force arming pada ArduPilot
         return self.client.send_command_long(
             mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
