@@ -1,37 +1,37 @@
 {
     "servos": [
         {
-            "name": "Servo Baru",
+            "name": "depan",
             "pin": 9,
-            "min_pwm": 600,
-            "max_pwm": 2600,
+            "min_pwm": 800,
+            "max_pwm": 1200,
             "trim_pwm": 1500,
             "step": 20,
             "mode": "toggle",
-            "btn_1": 5,
-            "btn_2": 4
+            "btn_1": 0,
+            "btn_2": 2
         },
         {
-            "name": "Servo Baru",
+            "name": "Belakang",
             "pin": 10,
+            "min_pwm": 500,
+            "max_pwm": 2400,
+            "trim_pwm": 1500,
+            "step": 50,
+            "mode": "incremental",
+            "btn_1": 10,
+            "btn_2": 9
+        },
+        {
+            "name": "Tengah",
+            "pin": 11,
             "min_pwm": 500,
             "max_pwm": 2200,
             "trim_pwm": 1500,
-            "step": 30,
+            "step": 60,
             "mode": "incremental",
-            "btn_1": 2,
-            "btn_2": 0
-        },
-        {
-            "name": "Servo Baru",
-            "pin": 11,
-            "min_pwm": 1250,
-            "max_pwm": 1700,
-            "trim_pwm": 1500,
-            "step": 40,
-            "mode": "incremental",
-            "btn_1": 100,
-            "btn_2": 101
+            "btn_1": 12,
+            "btn_2": 11
         }
     ]
 }

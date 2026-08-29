@@ -32,7 +32,7 @@ def main():
     args = parser.parse_args()
 
     print("==========================================================")
-    print("🛸 ROV DUAL CAMERA & QR CODE PROCESSING SYSTEM")
+    print(">> ROV DUAL CAMERA & QR CODE PROCESSING SYSTEM")
     print("==========================================================")
     print(f"-> CAM 1 (Laptop / Front) : {args.cam1}")
     print(f"-> CAM 2 (Action Cam USB) : {args.cam2}")
