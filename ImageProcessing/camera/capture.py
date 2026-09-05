@@ -177,8 +177,12 @@ class CameraThread:
     def _capture_loop(self):
         """Loop penangkapan frame secara kontinyu tanpa sleep berlebih, dengan proteksi timeout 3 detik."""
         last_valid_time = time.time()
-        while self._running and self.cap and self.cap.isOpened():
-            ret, frame = self.cap.read()
+        while self._running:
+            if self.cap is None or not self.cap.isOpened():
+                ret, frame = False, None
+            else:
+                ret, frame = self.cap.read()
+
             if ret and frame is not None and frame.size > 0:
                 last_valid_time = time.time()
                 # frame = cv2.flip(frame, 1) # Flip horizontal untuk menghilangkan efek mirror
@@ -189,9 +193,53 @@ class CameraThread:
             else:
                 # Proteksi timeout: Jika tidak ada frame valid masuk selama > 3 detik
                 if time.time() - last_valid_time > 3.0:
-                    print(f"[{self.cam_name} ERROR] Failure reason: Capture loop timed out (>3s without valid frame).")
-                    break
-                time.sleep(0.01)
+                    print(f"[{self.cam_name} WARNING] Capture timeout (>3s). Attempting auto-reconnect...")
+                    if self.cap:
+                        self.cap.release()
+                    self.cap = None
+                    self.is_connected = False
+                    
+                    # Wait slightly before reconnect
+                    time.sleep(1.5)
+                    
+                    import sys
+                    source_val = int(self.config.device) if isinstance(self.config.device, str) and self.config.device.isdigit() else self.config.device
+                    backend = cv2.CAP_V4L2 if sys.platform.startswith('linux') else (cv2.CAP_DSHOW if sys.platform.startswith('win') else cv2.CAP_ANY)
+                    
+                    indices_to_try = [source_val]
+                    if isinstance(source_val, int):
+                        # Coba angka aslinya, lalu angka berikutnya jika bergeser
+                        indices_to_try = list(dict.fromkeys([source_val, source_val+1, source_val+2, 0, 1, 2]))
+                        
+                    for idx in indices_to_try:
+                        print(f"[{self.cam_name}] Trying index {idx}...")
+                        try:
+                            temp_cap = cv2.VideoCapture(idx, backend)
+                            if temp_cap and temp_cap.isOpened():
+                                temp_cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.width)
+                                temp_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.height)
+                                temp_cap.set(cv2.CAP_PROP_FPS, self.config.fps)
+                                time.sleep(0.5) # Warmup
+                                t_ret, t_frame = temp_cap.read()
+                                if t_ret and t_frame is not None:
+                                    print(f"[{self.cam_name} SUCCESS] Reconnected to index {idx}!")
+                                    self.cap = temp_cap
+                                    self.active_source = idx
+                                    self.is_connected = True
+                                    last_valid_time = time.time()
+                                    break
+                                else:
+                                    temp_cap.release()
+                            else:
+                                if temp_cap: temp_cap.release()
+                        except Exception:
+                            pass
+                            
+                    if not self.is_connected:
+                        print(f"[{self.cam_name} ERROR] Auto-reconnect failed. Retrying later...")
+                        last_valid_time = time.time() # Reset timer agar tidak spam
+                else:
+                    time.sleep(0.01)
 
         self._running = False
         self.is_connected = False
