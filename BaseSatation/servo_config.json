@@ -3,11 +3,11 @@
         {
             "name": "depan",
             "pin": 9,
-            "min_pwm": 800,
-            "max_pwm": 1200,
-            "trim_pwm": 1500,
-            "step": 20,
-            "mode": "toggle",
+            "min_pwm": 1700,
+            "max_pwm": 2300,
+            "trim_pwm": 1700,
+            "step": 45,
+            "mode": "incremental",
             "btn_1": 0,
             "btn_2": 2
         },
@@ -17,7 +17,7 @@
             "min_pwm": 500,
             "max_pwm": 2400,
             "trim_pwm": 1500,
-            "step": 50,
+            "step": 60,
             "mode": "incremental",
             "btn_1": 10,
             "btn_2": 9
@@ -25,8 +25,8 @@
         {
             "name": "Tengah",
             "pin": 11,
-            "min_pwm": 500,
-            "max_pwm": 2200,
+            "min_pwm": 700,
+            "max_pwm": 2100,
             "trim_pwm": 1500,
             "step": 60,
             "mode": "incremental",

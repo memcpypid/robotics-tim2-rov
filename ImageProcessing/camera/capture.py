@@ -181,7 +181,7 @@ class CameraThread:
             ret, frame = self.cap.read()
             if ret and frame is not None and frame.size > 0:
                 last_valid_time = time.time()
-                frame = cv2.flip(frame, 1) # Flip horizontal untuk menghilangkan efek mirror
+                # frame = cv2.flip(frame, 1) # Flip horizontal untuk menghilangkan efek mirror
                 if frame.shape[1] != self.config.width or frame.shape[0] != self.config.height:
                     frame = cv2.resize(frame, (self.config.width, self.config.height))
                 with self._lock:

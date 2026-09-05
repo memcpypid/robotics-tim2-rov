@@ -34,10 +34,10 @@ except ImportError:
 # ──────────────────────────────────────────────
 AXIS_FUNCTIONS = [
     ("none",      "— Tidak Dipakai —"),
-    ("forward_x", "⬆ Maju / Mundur (X)"),
-    ("strafe_y",  "⬅ Geser Kiri / Kanan (Y)"),
-    ("depth_z",   "🔽 Naik / Turun (Z / Depth)"),
-    ("yaw_r",     "↻ Putar Yaw (R)"),
+    ("forward_x", "⬆ Maju / Mundur (Pitch/Surge)"),
+    ("strafe_y",  "⬅ Geser Kiri / Kanan (Roll/Sway)"),
+    ("depth_z",   "🔽 Naik / Turun (Heave/Depth)"),
+    ("yaw_r",     "↻ Putar Kiri / Kanan (Yaw)"),
 ]
 
 BUTTON_FUNCTIONS = [

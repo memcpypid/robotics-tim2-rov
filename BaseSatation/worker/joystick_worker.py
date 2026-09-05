@@ -191,11 +191,18 @@ class JoystickWorker(QObject):
             num_hats    = self._joystick.get_numhats()
 
             # ── Baca axis dari config ──
-            x = int(self._get_axis("forward_x", num_axes) * 1000)
+            # Note: Pygame Joystick Y-axis is negative (-1.0) when pushed UP.
+            # ArduSub X-axis (Maju) is positive (1000) for forward.
+            # Oleh karena itu, forward_x dikalikan -1000 agar saat didorong ke depan (UP) ROV maju.
+            x = int(-self._get_axis("forward_x", num_axes) * 1000)
             y = int(self._get_axis("strafe_y",  num_axes) * 1000)
             r = int(self._get_axis("yaw_r",     num_axes) * 1000)
+            
+            # z_raw: Up = -1.0, Down = 1.0
+            # ArduSub Z-axis: 0 = Naik (Ascend), 1000 = Turun (Descend).
+            # Saat stick ke atas (-1.0), kita mau z = 0. Saat ke bawah (1.0), z = 1000.
             z_raw = self._get_axis("depth_z", num_axes)
-            z = int(-z_raw * 500 + 500)
+            z = int(z_raw * 500 + 500)
 
             # ── D-Pad untuk depth ──
             if self._hat_depth and num_hats > 0:
