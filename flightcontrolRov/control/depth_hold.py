@@ -72,7 +72,7 @@ class MS5803DepthHoldControl(threading.Thread):
                 correction = self.pid.compute(setpoint=self.target_depth, measurement=current_depth)
                 
                 # Kirim ke ROV (menggunakan dive() yang menerima -1000 s/d 1000)
-                # Nilai positif = menyelam, negatif = naik
-                self.motion.dive(int(correction))
+                # Karena sebelumnya motor berputar ke arah yang salah (terbalik), kita inverting output PID-nya
+                self.motion.dive(int(-correction))
                 
             time.sleep(0.05)  # Loop pada ~20Hz
