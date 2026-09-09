@@ -246,6 +246,9 @@ class MainWindow(QMainWindow):
         # Allow joystick worker to communicate target depth changes to the panel (when using L2/R2)
         self.joystick_worker.sig_depth_target_changed.connect(self.depth_hold_panel.set_target_depth)
 
+        # Connect joystick button to toggle MS5803 depth hold
+        self.joystick_worker.sig_depth_hold_toggled.connect(self.depth_hold_panel._on_toggle_clicked)
+
         self.joystick_worker.start()
 
         self.log_panel.append_log("Cockpit GUI v2.0 siap. Dual Camera, Trajectory, QR Decoder, & USB Joystick siap.", "INFO")

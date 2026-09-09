@@ -34,6 +34,7 @@ class JoystickWorker(QObject):
     sig_auto_toggled     = Signal()
     sig_light_toggled    = Signal()
     sig_depth_target_changed = Signal(float)
+    sig_depth_hold_toggled = Signal()
 
 
     def __init__(self, parent=None):
@@ -365,6 +366,8 @@ class JoystickWorker(QObject):
                     self.sig_mode_changed.emit(mode_name)
                 elif func_key == "auto_toggle":
                     self.sig_auto_toggled.emit()
+                elif func_key == "enable_depth_hold":
+                    self.sig_depth_hold_toggled.emit()
                 elif func_key == "lights_toggle":
                     # Emit a signal that will toggle lights (we need to define this signal)
                     self.sig_light_toggled.emit()

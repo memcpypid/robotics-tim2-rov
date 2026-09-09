@@ -49,6 +49,7 @@ BUTTON_FUNCTIONS = [
     ("mode_manual",    "🕹️ Mode: MANUAL"),
     ("mode_stabilize", "📐 Mode: STABILIZE"),
     ("mode_depth_hold","📏 Mode: DEPTH HOLD"),
+    ("enable_depth_hold","⚓ Enable Depth Hold (MS5803)"),
     ("auto_toggle",    "🤖 Mode: AUTONOMOUS TOGGLE"),
     ("lights_toggle",  "💡 Lampu Toggle"),
 ]
@@ -292,7 +293,7 @@ class JoystickMapperPanel(QWidget):
         self.grp_axes.setStyleSheet(self._group_style("#1e3050"))
         self.axes_grid = QGridLayout(self.grp_axes)
         self.axes_grid.setSpacing(6)
-        headers = ["Axis #", "Nilai Live", "Fungsi", "Invert", "Deadzone"]
+        headers = ["Axis #", "Nilai Live", "Fungsi", "Invert", "Deadzone", "Scale/Speed"]
         for c, h in enumerate(headers):
             lbl = QLabel(h)
             lbl.setStyleSheet("color:#7a8fa6; font-size:10px; font-weight:bold;")
@@ -474,12 +475,14 @@ class JoystickMapperPanel(QWidget):
         idx_to_func = {}
         idx_to_inv = {}
         idx_to_dz = {}
+        idx_to_scale = {}
         for func_key, av in axes_cfg.items():
             if isinstance(av, dict):
                 ai = av.get("axis", -1)
                 idx_to_func[ai] = func_key
                 idx_to_inv[ai] = av.get("invert", False)
                 idx_to_dz[ai] = av.get("deadzone", 0.08)
+                idx_to_scale[ai] = av.get("scale", 1.0)
 
         for i in range(n_axes):
             row = i + 1  # Header is row 0
@@ -519,9 +522,18 @@ class JoystickMapperPanel(QWidget):
             spn_dz.setStyleSheet("background:#1a2535; color:#cdd9e5; border:1px solid #2d4060;")
             self.axes_grid.addWidget(spn_dz, row, 4)
 
+            spn_scale = QDoubleSpinBox()
+            spn_scale.setRange(0.1, 2.0)
+            spn_scale.setSingleStep(0.1)
+            spn_scale.setDecimals(2)
+            spn_scale.setValue(idx_to_scale.get(i, 1.0))
+            spn_scale.setFixedWidth(70)
+            spn_scale.setStyleSheet("background:#1a2535; color:#cdd9e5; border:1px solid #2d4060;")
+            self.axes_grid.addWidget(spn_scale, row, 5)
+
             self._axis_row_widgets.append({
                 "axis_idx": i, "lbl_live": lbl_live,
-                "cb_func": cb_func, "chk_inv": chk_inv, "spn_dz": spn_dz
+                "cb_func": cb_func, "chk_inv": chk_inv, "spn_dz": spn_dz, "spn_scale": spn_scale
             })
 
         # --- Build button rows ---
@@ -573,7 +585,8 @@ class JoystickMapperPanel(QWidget):
                 continue
             invert = row_data["chk_inv"].isChecked()
             dz = row_data["spn_dz"].value()
-            new_axes[func] = {"axis": i, "invert": invert, "deadzone": dz, "scale": 1.0}
+            scale = row_data["spn_scale"].value() if "spn_scale" in row_data else 1.0
+            new_axes[func] = {"axis": i, "invert": invert, "deadzone": dz, "scale": scale}
 
         new_buttons: Dict[str, int] = {}
         # Init semua fungsi ke -1

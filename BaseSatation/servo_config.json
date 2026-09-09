@@ -25,7 +25,7 @@
         {
             "name": "Depan",
             "pin": 11,
-            "min_pwm": 1100,
+            "min_pwm": 1000,
             "max_pwm": 1800,
             "trim_pwm": 1500,
             "step": 60,
