@@ -39,6 +39,8 @@ from sensor.telemetry import ROVTelemetrySensor
 from control.arming import ROVArmingControl
 from control.modes import ROVModeControl
 from control.motion import ROVMotionControl
+from sensor.gy_ms5803 import MS5803Sensor
+
 class ROVController:
     """
     Kelas utama (Facade) yang menggabungkan seluruh fungsionalitas koneksi,
@@ -57,6 +59,10 @@ class ROVController:
         self.arming = ROVArmingControl(self.client)
         self.modes = ROVModeControl(self.client)
         self.motion = ROVMotionControl(self.client)
+        
+        # 3b. Inisialisasi External Sensor I2C
+        self.ms5803_sensor = MS5803Sensor(bus_number=1, i2c_address=0x76) # Default address for GY-MS5803 is usually 0x77 or 0x76
+        self.ms5803_sensor.start()
 
         # 4. Inisialisasi GPIO untuk aksesoris (Relay Lampu)
         self.light_pin = 5
@@ -89,6 +95,8 @@ class ROVController:
     def disconnect(self):
         """Menutup koneksi ROV dan melepaskan kendali."""
         self.stop_lan_server()
+        if hasattr(self, 'ms5803_sensor'):
+            self.ms5803_sensor.stop()
         self.client.disconnect()
 
     def is_connected(self) -> bool:

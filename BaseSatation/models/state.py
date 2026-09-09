@@ -26,6 +26,11 @@ class ROVState:
     pressure_press_abs: float = 0.0  # Tekanan absolut sensor (mbar/hPa)
     water_temperature_c: float = 0.0 # Suhu air dalam Celcius
 
+    # Sensor Eksternal I2C Jetson (GY-MS5803-01BA)
+    ms5803_pressure: float = 0.0     # Tekanan dari I2C MS5803 (mbar)
+    ms5803_temp: float = 0.0         # Suhu dari I2C MS5803 (C)
+    ms5803_depth: float = 0.0        # Kedalaman dari I2C MS5803 (m)
+
     # Posisi & Trajectory Tracking (Dead Reckoning / Local NED)
     pos_x: float = 0.0               # Koordinat X meter (Forward/North)
     pos_y: float = 0.0               # Koordinat Y meter (Right/East)

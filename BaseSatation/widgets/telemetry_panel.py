@@ -42,11 +42,22 @@ class TelemetryPanel(QWidget):
         self.lbl_bat_val.setStyleSheet("color: #ffd54f; font-weight: bold; font-size: 16px;")
         grid.addWidget(self.lbl_bat_val, 0, 3)
 
-        # Row 1: Altimeter & Battery Progress Bar
-        grid.addWidget(QLabel("Tinggi Dasar:"), 1, 0)
+        # Row 1: Ext Depth (MS5803) & Ext Temp (MS5803)
+        grid.addWidget(QLabel("Kedalaman (MS5803):"), 1, 0)
+        self.lbl_ext_depth = QLabel("0.00 m")
+        self.lbl_ext_depth.setStyleSheet("color: #00e5ff; font-weight: bold; font-size: 16px;")
+        grid.addWidget(self.lbl_ext_depth, 1, 1)
+
+        grid.addWidget(QLabel("Suhu (MS5803):"), 1, 2)
+        self.lbl_ext_temp = QLabel("0.0 °C")
+        self.lbl_ext_temp.setStyleSheet("color: #ff9e80; font-weight: bold; font-size: 16px;")
+        grid.addWidget(self.lbl_ext_temp, 1, 3)
+
+        # Row 2: Altimeter & Battery Progress Bar
+        grid.addWidget(QLabel("Tinggi Dasar:"), 2, 0)
         self.lbl_alt_val = QLabel("0.00 m")
         self.lbl_alt_val.setStyleSheet("color: #40bf6a; font-weight: bold; font-size: 16px;")
-        grid.addWidget(self.lbl_alt_val, 1, 1)
+        grid.addWidget(self.lbl_alt_val, 2, 1)
 
         self.bar_battery = QProgressBar()
         self.bar_battery.setRange(0, 100)
@@ -57,9 +68,9 @@ class TelemetryPanel(QWidget):
             QProgressBar { background-color: #121824; border: 1px solid #2d3e5c; border-radius: 4px; text-align: center; color: #ffffff; font-size: 10px; font-weight: bold; }
             QProgressBar::chunk { background-color: #ffd54f; border-radius: 3px; }
         """)
-        grid.addWidget(self.bar_battery, 1, 2, 1, 2)
+        grid.addWidget(self.bar_battery, 2, 2, 1, 2)
 
-        # Row 2: Altimeter Clearance Bar
+        # Row 3: Altimeter Clearance Bar
         self.bar_alt = QProgressBar()
         self.bar_alt.setRange(0, 300)  # max 300 cm / 3 m clearance
         self.bar_alt.setValue(0)
@@ -69,7 +80,7 @@ class TelemetryPanel(QWidget):
             QProgressBar { background-color: #121824; border: 1px solid #2d3e5c; border-radius: 4px; text-align: center; color: #ffffff; font-size: 10px; font-weight: bold; }
             QProgressBar::chunk { background-color: #40bf6a; border-radius: 3px; }
         """)
-        grid.addWidget(self.bar_alt, 2, 0, 1, 4)
+        grid.addWidget(self.bar_alt, 3, 0, 1, 4)
 
         layout.addLayout(grid)
 
@@ -103,6 +114,12 @@ class TelemetryPanel(QWidget):
         """Memperbarui UI panel dengan data dari object ROVState."""
         # Depth & Altitude (Dasar Kolam)
         self.lbl_depth_val.setText(f"{state.depth_m:.2f} m")
+        
+        # MS5803 External Sensor Data
+        if hasattr(state, 'ms5803_depth'):
+            self.lbl_ext_depth.setText(f"{state.ms5803_depth:.2f} m")
+            self.lbl_ext_temp.setText(f"{state.ms5803_temp:.1f} °C")
+            
         self.lbl_alt_val.setText(f"{state.altitude_m:.2f} m")
         
         alt_cm = int(max(0, state.altitude_m * 100))
