@@ -9,6 +9,9 @@ from .trajectory_panel import TrajectoryPanel
 from .design_panel import DesignROVPanel
 from .motor_panel import MotorPanel
 from .connection_config_panel import ConnectionConfigPanel
+from .joystick_mapper import JoystickMapperPanel
+from .servo_panel import ServoPanel
+from .depth_hold_panel import DepthHoldPanel
 
 __all__ = [
     "AttitudeIndicator",
@@ -21,6 +24,8 @@ __all__ = [
     "TrajectoryPanel",
     "DesignROVPanel",
     "MotorPanel",
-    "ConnectionConfigPanel"
+    "ConnectionConfigPanel",
+    "JoystickMapperPanel",
+    "ServoPanel",
+    "DepthHoldPanel"
 ]
-

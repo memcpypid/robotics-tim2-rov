@@ -145,6 +145,11 @@ class MS5803Sensor(threading.Thread):
             
             time.sleep(0.05) # 20Hz update rate
             
+    def calibrate(self):
+        """Force the sensor to reset its base pressure (calibrate to current depth)."""
+        self._init_pressure = False
+        print("[MS5803] Kalibrasi dipicu. Base pressure akan di-reset pada pembacaan berikutnya.")
+
     def stop(self):
         self.running = False
         if self.bus:

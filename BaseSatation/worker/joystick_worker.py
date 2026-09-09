@@ -33,6 +33,7 @@ class JoystickWorker(QObject):
     sig_mode_changed     = Signal(str)
     sig_auto_toggled     = Signal()
     sig_light_toggled    = Signal()
+    sig_depth_target_changed = Signal(float)
 
 
     def __init__(self, parent=None):
@@ -53,6 +54,8 @@ class JoystickWorker(QObject):
         self.servo_config: list = []
         self.servo_states: dict = {}
         self._latest_state = None
+        
+        self._target_depth = 0.0
 
         self.reload_joystick_config()
         self.reload_servo_config()
@@ -243,6 +246,20 @@ class JoystickWorker(QObject):
             y = max(-1000, min(1000, y))
             z = max(0,    min(1000, z))
             r = max(-1000, min(1000, r))
+
+            # MS5803 Custom Depth Target Adjustment (L2 = btn 6, R2 = btn 7 as per standard, or triggers)
+            # We increment/decrement slightly if the button is held
+            target_changed = False
+            if 6 < num_buttons and current_buttons[6]: # L2 (Decrease Depth / Go Up)
+                self._target_depth -= 0.05
+                target_changed = True
+            if 7 < num_buttons and current_buttons[7]: # R2 (Increase Depth / Dive)
+                self._target_depth += 0.05
+                target_changed = True
+
+            if target_changed:
+                self._target_depth = max(0.0, self._target_depth)
+                self.sig_depth_target_changed.emit(self._target_depth)
 
             # Bitmask
             buttons_mask = 0

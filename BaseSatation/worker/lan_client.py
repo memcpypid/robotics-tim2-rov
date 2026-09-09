@@ -205,6 +205,18 @@ class LANClientWorker(QObject):
     def send_shutdown(self):
         self.send_command({"cmd": "SHUTDOWN"})
 
+    def send_depth_hold_toggle(self, active: bool):
+        self.send_command({"cmd": "DEPTH_HOLD_TOGGLE", "active": active})
+
+    def send_depth_hold_target(self, target: float):
+        self.send_command({"cmd": "DEPTH_HOLD_TARGET", "target": target})
+
+    def send_depth_hold_pid(self, kp: float, ki: float, kd: float):
+        self.send_command({"cmd": "DEPTH_HOLD_PID", "kp": kp, "ki": ki, "kd": kd})
+
+    def send_calibrate_ms5803(self):
+        self.send_command({"cmd": "CALIBRATE_MS5803"})
+
     def _listen_telemetry_loop(self):
         """Mendengarkan paket telemetri JSON dari Jetson Nano / ROV Backend."""
         if not self._telemetry_sock:

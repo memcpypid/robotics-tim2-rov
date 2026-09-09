@@ -9,31 +9,28 @@ from pymavlink import mavutil
 class ROVMotionControl:
     def __init__(self, client: MAVClient):
         self.client = client
+        self._last_x = 0
+        self._last_y = 0
+        self._last_z = 500
+        self._last_r = 0
+        self._last_buttons = 0
 
     def send_manual_control(self, x: int = 0, y: int = 0, z: int = 500, r: int = 0, buttons: int = 0):
-        """
-        Mengirimkan perintah gerakan joystick 6-DOF (MANUAL_CONTROL) yang paling direkomendasikan untuk ROV/ArduSub.
-        
-        :param x: Maju/Mundur (Pitch/Surge) -> Rentang: -1000 sampai 1000
-        :param y: Kiri/Kanan (Strafe/Sway) -> Rentang: -1000 sampai 1000
-        :param z: Naik/Turun (Depth/Heave)   -> Rentang: 0 sampai 1000 (500 adalah nilai netral / diam)
-        :param r: Putar Kiri/Kanan (Yaw)     -> Rentang: -1000 sampai 1000
-        :param buttons: Bitmask untuk tombol aktif joystick (misalnya tombol 1, 2, lampu, gripper)
-        """
         if not self.client.is_connected():
             return False
 
         # Pastikan nilai batas tetap aman (clamping)
-        x = max(-1000, min(1000, int(x)))
-        y = max(-1000, min(1000, int(y)))
-        z = max(0, min(1000, int(z)))
-        r = max(-1000, min(1000, int(r)))
+        self._last_x = max(-1000, min(1000, int(x)))
+        self._last_y = max(-1000, min(1000, int(y)))
+        self._last_z = max(0, min(1000, int(z)))
+        self._last_r = max(-1000, min(1000, int(r)))
+        self._last_buttons = buttons
 
         with self.client._lock:
             try:
                 self.client.master.mav.manual_control_send(
                     self.client.master.target_system,
-                    x, y, z, r, buttons
+                    self._last_x, self._last_y, self._last_z, self._last_r, self._last_buttons
                 )
                 return True
             except Exception as e:
@@ -92,7 +89,7 @@ class ROVMotionControl:
         # depth_rate=-1000 -> z=0    (naik penuh)
         z = int(500 + (depth_rate / 2.0))
         z = max(0, min(1000, z))
-        return self.send_manual_control(x=0, y=0, z=z, r=0)
+        return self.send_manual_control(x=self._last_x, y=self._last_y, z=z, r=self._last_r, buttons=self._last_buttons)
 
     def stop(self) -> bool:
         """

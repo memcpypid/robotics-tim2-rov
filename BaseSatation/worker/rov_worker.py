@@ -190,6 +190,30 @@ class ROVWorker(QObject):
         else:
             self.sig_log.emit("Gagal mengirim perintah Shutdown: ROV LAN belum terhubung!", "ERROR")
 
+    def send_depth_hold_toggle(self, active: bool):
+        if self.lan_client and self.lan_client.is_lan_connected:
+            self.lan_client.send_depth_hold_toggle(active)
+        elif self.rov and self.rov.is_connected():
+            self.rov.set_custom_depth_hold(active)
+
+    def send_depth_hold_target(self, target: float):
+        if self.lan_client and self.lan_client.is_lan_connected:
+            self.lan_client.send_depth_hold_target(target)
+        elif self.rov and self.rov.is_connected():
+            self.rov.set_custom_depth_target(target)
+
+    def send_depth_hold_pid(self, kp: float, ki: float, kd: float):
+        if self.lan_client and self.lan_client.is_lan_connected:
+            self.lan_client.send_depth_hold_pid(kp, ki, kd)
+        elif self.rov and self.rov.is_connected():
+            self.rov.set_custom_depth_pid(kp, ki, kd)
+
+    def send_calibrate_ms5803(self):
+        if self.lan_client and self.lan_client.is_lan_connected:
+            self.lan_client.send_calibrate_ms5803()
+        elif self.rov and self.rov.is_connected():
+            self.rov.calibrate_ms5803()
+
     def _poll_telemetry(self):
         if self.rov and self.rov.is_connected():
             try:

@@ -40,6 +40,7 @@ from control.arming import ROVArmingControl
 from control.modes import ROVModeControl
 from control.motion import ROVMotionControl
 from sensor.gy_ms5803 import MS5803Sensor
+from control.depth_hold import MS5803DepthHoldControl
 
 class ROVController:
     """
@@ -63,6 +64,10 @@ class ROVController:
         # 3b. Inisialisasi External Sensor I2C
         self.ms5803_sensor = MS5803Sensor(bus_number=1, i2c_address=0x76) # Default address for GY-MS5803 is usually 0x77 or 0x76
         self.ms5803_sensor.start()
+
+        # 3c. Inisialisasi Custom Depth Hold Loop
+        self.depth_hold = MS5803DepthHoldControl(self.motion)
+        self.depth_hold.start()
 
         # 4. Inisialisasi GPIO untuk aksesoris (Relay Lampu)
         self.light_pin = 5
@@ -97,7 +102,28 @@ class ROVController:
         self.stop_lan_server()
         if hasattr(self, 'ms5803_sensor'):
             self.ms5803_sensor.stop()
+        if hasattr(self, 'depth_hold'):
+            self.depth_hold.stop()
         self.client.disconnect()
+
+    def set_custom_depth_hold(self, active: bool):
+        if active:
+            self.depth_hold.enable()
+        else:
+            self.depth_hold.disable()
+        return True
+
+    def set_custom_depth_target(self, target: float):
+        self.depth_hold.set_target_depth(target)
+        return True
+
+    def set_custom_depth_pid(self, kp: float, ki: float, kd: float):
+        self.depth_hold.set_pid(kp, ki, kd)
+        return True
+
+    def calibrate_ms5803(self):
+        self.ms5803_sensor.calibrate()
+        return True
 
     def is_connected(self) -> bool:
         return self.client.is_connected()
@@ -128,6 +154,10 @@ class ROVController:
         z: Naik/Turun Kedalaman (0 s/d 1000, 500 netral/hover)
         r: Putar Yaw (-1000 s/d 1000)
         """
+        # Mencegah joystick override kedalaman saat Custom Depth Hold aktif
+        if hasattr(self, 'depth_hold') and self.depth_hold.active:
+            z = self.motion._last_z
+
         return self.motion.send_manual_control(x, y, z, r, buttons)
 
     def dive(self, depth_rate: int = 0) -> bool:

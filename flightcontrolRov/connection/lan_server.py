@@ -220,6 +220,27 @@ class ROVLANServer:
                 success = self.rov.set_servo(pin, pwm)
                 return {"status": "OK" if success else "ERROR", "cmd": "SET_SERVO", "pin": pin, "pwm": pwm, "success": success}
 
+            elif cmd == "DEPTH_HOLD_TOGGLE":
+                active = bool(cmd_json.get("active", False))
+                success = self.rov.set_custom_depth_hold(active)
+                return {"status": "OK" if success else "ERROR", "cmd": "DEPTH_HOLD_TOGGLE", "success": success}
+
+            elif cmd == "DEPTH_HOLD_TARGET":
+                target = float(cmd_json.get("target", 0.0))
+                success = self.rov.set_custom_depth_target(target)
+                return {"status": "OK" if success else "ERROR", "cmd": "DEPTH_HOLD_TARGET", "success": success}
+
+            elif cmd == "DEPTH_HOLD_PID":
+                kp = float(cmd_json.get("kp", 0.0))
+                ki = float(cmd_json.get("ki", 0.0))
+                kd = float(cmd_json.get("kd", 0.0))
+                success = self.rov.set_custom_depth_pid(kp, ki, kd)
+                return {"status": "OK" if success else "ERROR", "cmd": "DEPTH_HOLD_PID", "success": success}
+
+            elif cmd == "CALIBRATE_MS5803":
+                success = self.rov.calibrate_ms5803()
+                return {"status": "OK" if success else "ERROR", "cmd": "CALIBRATE_MS5803", "success": success}
+
             else:
                 return {"status": "ERROR", "message": f"Perintah tidak dikenali: {cmd}"}
 

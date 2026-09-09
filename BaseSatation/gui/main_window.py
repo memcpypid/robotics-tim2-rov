@@ -9,7 +9,7 @@ from widgets import (
     AttitudeIndicator, CompassIndicator, TelemetryPanel,
     ControlPanel, VideoPanel, LogPanel, QRPanel,
     TrajectoryPanel, DesignROVPanel, MotorPanel,
-    ConnectionConfigPanel
+    ConnectionConfigPanel, DepthHoldPanel
 )
 from widgets.trajectory_panel import TrajectoryCanvas
 from widgets.servo_panel import ServoPanel
@@ -152,7 +152,11 @@ class MainWindow(QMainWindow):
         self.joystick_mapper = JoystickMapperPanel()
         self.center_tabs.addTab(self.joystick_mapper, "JOYSTICK MAPPER")
 
-        # TAB 6: Gambar Design ROV (Placeholder)
+        # TAB 6: DEPTH HOLD (GY-MS5803)
+        self.depth_hold_panel = DepthHoldPanel()
+        self.center_tabs.addTab(self.depth_hold_panel, "DEPTH HOLD (MS5803)")
+
+        # TAB 7: Gambar Design ROV (Placeholder)
         self.design_panel = DesignROVPanel()
         self.center_tabs.addTab(self.design_panel, "GAMBAR DESIGN ROV")
 
@@ -232,6 +236,16 @@ class MainWindow(QMainWindow):
         self.joystick_worker.sig_mode_changed.connect(self.worker.set_mode)
         self.control_panel.sig_joystick_enable_toggled.connect(self.joystick_worker.set_enabled)
         self.worker.sig_state_updated.connect(self.joystick_worker.on_state_updated)
+
+        # Connect Depth Hold signals
+        self.depth_hold_panel.sig_toggle.connect(self.worker.send_depth_hold_toggle)
+        self.depth_hold_panel.sig_pid_changed.connect(self.worker.send_depth_hold_pid)
+        self.depth_hold_panel.sig_calibrate.connect(self.worker.send_calibrate_ms5803)
+        self.depth_hold_panel.sig_target_changed.connect(self.worker.send_depth_hold_target)
+
+        # Allow joystick worker to communicate target depth changes to the panel (when using L2/R2)
+        self.joystick_worker.sig_depth_target_changed.connect(self.depth_hold_panel.set_target_depth)
+
         self.joystick_worker.start()
 
         self.log_panel.append_log("Cockpit GUI v2.0 siap. Dual Camera, Trajectory, QR Decoder, & USB Joystick siap.", "INFO")
@@ -281,6 +295,9 @@ class MainWindow(QMainWindow):
         # Update HUD Instruments (Roll, Pitch, Yaw)
         self.attitude_indicator.set_attitude(state.roll, state.pitch)
         self.compass_indicator.set_yaw(state.yaw)
+
+        # Update Depth Hold Panel
+        self.depth_hold_panel.update_depth(state.ms5803_depth)
 
         # Update Trajectory Path Tracker di Sidebar Kanan
         self.trajectory_panel.update_trajectory(state)
