@@ -61,7 +61,7 @@ class ROVController:
         self.motion = ROVMotionControl(self.client)
         
         # 3b. Inisialisasi External Sensor I2C
-        self.ms5803_sensor = MS5803Sensor(bus_number=1, i2c_address=0x76) # Default address for GY-MS5803 is usually 0x77 or 0x76
+        self.ms5803_sensor = MS5803Sensor(bus_number=1, i2c_address=0x77) # Default address for GY-MS5803 is usually 0x77 or 0x76
         self.ms5803_sensor.start()
 
         # 4. Inisialisasi GPIO untuk aksesoris (Relay Lampu)

@@ -45,6 +45,9 @@ except ImportError:
             qr_last_time: float = 0.0
             qr_last_cam: str = ""
             qr_last_image: str = ""
+            ms5803_pressure: float = 0.0
+            ms5803_temp: float = 0.0
+            ms5803_depth: float = 0.0
             pwm_outputs: list = field(default_factory=list)
 
 
