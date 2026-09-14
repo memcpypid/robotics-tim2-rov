@@ -27,9 +27,39 @@ class TrajectoryCanvas(QFrame):
         self.offset_x = 0.0
         self.offset_y = 0.0
         self.auto_center = True  # Selalu posisikan ROV di tengah kanvas
+        
+        # Dead-reckoning variables
+        import time
+        self.last_time = time.time()
+        self.current_cmd_x = 0.0
+        self.current_cmd_y = 0.0
+
+    def set_manual_control(self, cmd_x: float, cmd_y: float):
+        """Menerima command joystick untuk simulasi pergerakan (-1.0 s/d 1.0)"""
+        self.current_cmd_x = cmd_x
+        self.current_cmd_y = cmd_y
 
     def update_position(self, x: float, y: float, z: float, yaw: float):
         """Memperbarui posisi terkini dan menambahkan ke jejak lintasan bila berpindah > 0.05 m."""
+        import time
+        now = time.time()
+        dt = now - self.last_time
+        self.last_time = now
+        
+        # Jika sensor eksternal (pos_x, pos_y) selalu 0, kita gunakan pseudo-odometry
+        if abs(x) < 0.001 and abs(y) < 0.001:
+            # Asumsi max speed = 1.0 m/s
+            MAX_SPEED = 1.5
+            vx = self.current_cmd_x * MAX_SPEED
+            vy = self.current_cmd_y * MAX_SPEED
+            
+            yaw_rad = math.radians(yaw)
+            world_dx = (vx * math.cos(yaw_rad)) - (vy * math.sin(yaw_rad))
+            world_dy = (vx * math.sin(yaw_rad)) + (vy * math.cos(yaw_rad))
+            
+            x = self.current_x + (world_dx * dt)
+            y = self.current_y + (world_dy * dt)
+            
         dx = x - self.current_x
         dy = y - self.current_y
         dist = math.sqrt(dx*dx + dy*dy)
@@ -60,6 +90,8 @@ class TrajectoryCanvas(QFrame):
         self.total_distance = 0.0
         self.offset_x = 0.0
         self.offset_y = 0.0
+        import time
+        self.last_time = time.time()
         self.update()
 
     def zoom_in(self):
@@ -117,28 +149,31 @@ class TrajectoryCanvas(QFrame):
         painter.drawText(width - 85, int(cy) - 5, "E (Right Y+)")
 
         # 3. Gambar Jejak Lintasan (Trajectory Path)
-        if len(self.path_points) > 1:
-            path_pen = QPen(QColor("#00e5ff"), 2.5, Qt.SolidLine)
-            path_pen.setJoinStyle(Qt.RoundJoin)
+        if len(self.path_points) > 0:
+            path_pen = QPen(QColor("#00e5ff"), 3.0, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
             painter.setPen(path_pen)
             
-            for i in range(len(self.path_points) - 1):
-                x1, y1 = self.path_points[i]
-                x2, y2 = self.path_points[i+1]
-                # Konversi NED ke koordinat layar (X North -> -Y screen, Y East -> +X screen)
-                px1 = cx + (y1 * self.scale)
-                py1 = cy - (x1 * self.scale)
-                px2 = cx + (y2 * self.scale)
-                py2 = cy - (x2 * self.scale)
-                painter.drawLine(QPointF(px1, py1), QPointF(px2, py2))
-
-            # Draw waypoint dots
-            painter.setBrush(QBrush(QColor("#00e5ff")))
-            painter.setPen(Qt.NoPen)
-            for pt in self.path_points[1:-1:2]:
-                px = cx + (pt[1] * self.scale)
-                py = cy - (pt[0] * self.scale)
-                painter.drawEllipse(QPointF(px, py), 2.5, 2.5)
+            traj_path = QPainterPath()
+            
+            # Mulai dari titik awal
+            start_x, start_y = self.path_points[0]
+            px0 = cx + (start_y * self.scale)
+            py0 = cy - (start_x * self.scale)
+            traj_path.moveTo(px0, py0)
+            
+            # Hubungkan semua titik lintasan yang sudah dilewati
+            for i in range(1, len(self.path_points)):
+                x, y = self.path_points[i]
+                px = cx + (y * self.scale)
+                py = cy - (x * self.scale)
+                traj_path.lineTo(px, py)
+                
+            # Hubungkan secara mulus (live) ke posisi ROV saat ini
+            live_px = cx + (self.current_y * self.scale)
+            live_py = cy - (self.current_x * self.scale)
+            traj_path.lineTo(live_px, live_py)
+            
+            painter.drawPath(traj_path)
 
         # 4. Titik Awal [START (0,0)]
         start_x = cx

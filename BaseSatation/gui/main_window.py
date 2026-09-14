@@ -238,6 +238,9 @@ class MainWindow(QMainWindow):
         self.control_panel.sig_pilot_gain_changed.connect(self.joystick_worker.set_pilot_gain)
         self.worker.sig_state_updated.connect(self.joystick_worker.on_state_updated)
 
+        # Connect Manual Control to Trajectory for Pseudo-Odometry
+        self.joystick_worker.sig_manual_control.connect(self._on_manual_control_for_trajectory)
+
         # Connect Depth Hold signals
         self.depth_hold_panel.sig_toggle.connect(self.worker.send_depth_hold_toggle)
         self.depth_hold_panel.sig_pid_changed.connect(self.worker.send_depth_hold_pid)
@@ -287,6 +290,13 @@ class MainWindow(QMainWindow):
         current_state = self.control_panel._auto_mode
         new_state = not current_state
         self._on_auto_mode_toggled(new_state)
+
+    def _on_manual_control_for_trajectory(self, x: int, y: int, z: int, r: int, buttons: int):
+        # x dan y rentangnya -1000 sampai 1000 (0 adalah netral)
+        # Kita normalisasi menjadi -1.0 sampai 1.0
+        cmd_x = x / 1000.0
+        cmd_y = y / 1000.0
+        self.trajectory_panel.canvas.set_manual_control(cmd_x, cmd_y)
 
     def _on_state_updated(self, state):
         # Debug logging ke console

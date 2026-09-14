@@ -204,8 +204,8 @@ class ControlPanel(QWidget):
         self._auto_mode = is_auto
         self.btn_auto_toggle.setChecked(is_auto)
         if is_auto:
-            self.btn_auto_toggle.setText("MODE AUTONOMOUS (VISION)")
-            self.lbl_auto_mode.setText(" Status Kendali: AUTONOMOUS / VISION")
+            self.btn_auto_toggle.setText("MODE AUTONOMOUS (SEQUENCE)")
+            self.lbl_auto_mode.setText(" Status Kendali: AUTONOMOUS / SEQUENCE")
             self.lbl_auto_mode.setStyleSheet("font-size: 11px; color: #e67e22; font-weight: bold;")
         else:
             self.btn_auto_toggle.setText("MODE MANUAL (JOYSTICK)")

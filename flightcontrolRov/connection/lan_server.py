@@ -163,9 +163,62 @@ class ROVLANServer:
                 return {"status": "OK" if success else "ERROR", "cmd": "SET_MODE", "mode": mode_name, "success": success}
 
             elif cmd == "SET_AUTO":
-                print("[LANServer] Mengaktifkan Mode AUTONOMOUS (Vision Controlled)")
-                # Ubah mode FC ke GUIDED atau STABILIZE (dengan penguncian input manual)
-                success = self.rov.set_mode("GUIDED") or self.rov.set_mode("STABILIZE")
+                print("[LANServer] Mengaktifkan Mode AUTONOMOUS (Manual Sequence)")
+                success = self.rov.set_mode("STABILIZE")
+                self.abort_auto = False
+                
+                def auto_routine():
+                    import time
+                    print("[AUTO] Misi Dimulai!")
+                    
+                    def run_stage(x, y, z, r, duration):
+                        end_time = time.time() + duration
+                        while time.time() < end_time:
+                            if getattr(self, 'abort_auto', False):
+                                print("[AUTO] Dibatalkan oleh user!")
+                                self.rov.stop()
+                                return False
+                            self.rov.move(x, y, z, r, buttons=0)
+                            time.sleep(0.1)
+                        return True
+                        
+                    def angle_diff(target, current):
+                        return (target - current + 180) % 360 - 180
+
+                    # 1. Geser Kanan (y=1000) selama 2 detik
+                    print("[AUTO] Stage 1: Geser Kanan (2 detik)")
+                    if not run_stage(x=0, y=1000, z=500, r=0, duration=2.0): return
+                    
+                    # 2. Putar Kiri 90 derajat
+                    print("[AUTO] Stage 2: Putar Kiri 90 derajat")
+                    start_yaw = self.rov.get_state().yaw
+                    target_yaw = (start_yaw - 90.0) % 360.0
+                    timeout = time.time() + 6.0  # Max 6 detik untuk mencegah stuck
+                    while time.time() < timeout:
+                        if getattr(self, 'abort_auto', False):
+                            self.rov.stop()
+                            return
+                        curr_yaw = self.rov.get_state().yaw
+                        if abs(angle_diff(target_yaw, curr_yaw)) < 5.0:  # Toleransi 5 derajat
+                            break
+                        self.rov.move(x=0, y=0, z=500, r=-800, buttons=0)
+                        time.sleep(0.1)
+                        
+                    # 3. Tenggelam full 10 detik (z=1000)
+                    print("[AUTO] Stage 3: Menyelam (10 detik)")
+                    if not run_stage(x=0, y=0, z=1000, r=0, duration=10.0): return
+                    
+                    # 4. Naik full 10 detik (z=0)
+                    print("[AUTO] Stage 4: Naik (10 detik)")
+                    if not run_stage(x=0, y=0, z=0, r=0, duration=10.0): return
+                    
+                    # 5. Stop
+                    print("[AUTO] Misi Selesai!")
+                    self.rov.stop()
+
+                import threading
+                threading.Thread(target=auto_routine, daemon=True).start()
+                
                 return {"status": "OK" if success else "ERROR", "cmd": "SET_AUTO", "success": success}
                 
             elif cmd == "TOGGLE_LIGHTS":
@@ -181,6 +234,7 @@ class ROVLANServer:
 
             elif cmd == "SET_MANUAL":
                 print("[LANServer] Mengembalikan Mode ke MANUAL JOYSTICK")
+                self.abort_auto = True
                 success = self.rov.set_mode("STABILIZE") or self.rov.set_mode("MANUAL")
                 return {"status": "OK" if success else "ERROR", "cmd": "SET_MANUAL", "success": success}
 
