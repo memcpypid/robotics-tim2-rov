@@ -85,6 +85,9 @@ class JoystickWorker(QObject):
 
         self._axes_map    = data.get("axes", {})
         self._buttons_map = data.get("buttons", {})
+        self._shift_buttons_map = data.get("shift_buttons", {})
+        self._shift_btn   = data.get("shift_btn", -1)
+        self._shift_axis  = data.get("shift_axis", -1)
         self._hat_depth   = data.get("hat_depth", True)
 
     def reload_servo_config(self):
@@ -161,8 +164,9 @@ class JoystickWorker(QObject):
             raw = -raw
         return raw * cfg.get("scale", 1.0)
 
-    def _btn_idx(self, func_key: str) -> int:
-        return int(self._buttons_map.get(func_key, -1))
+    def _btn_idx(self, func_key: str, is_shifted: bool = False) -> int:
+        active_map = self._shift_buttons_map if is_shifted else self._buttons_map
+        return int(active_map.get(func_key, -1))
 
     # ──────────────────────────────────────────
     # Main Poll Loop
@@ -199,6 +203,16 @@ class JoystickWorker(QObject):
             num_buttons = self._joystick.get_numbuttons()
             num_hats    = self._joystick.get_numhats()
 
+            current_buttons = [self._joystick.get_button(i) for i in range(num_buttons)]
+            
+            # ── Shift Detection ──
+            is_shifted = False
+            if 0 <= getattr(self, '_shift_btn', -1) < num_buttons:
+                is_shifted = current_buttons[self._shift_btn]
+            if 0 <= getattr(self, '_shift_axis', -1) < num_axes:
+                if self._joystick.get_axis(self._shift_axis) > 0.8:
+                    is_shifted = True
+
             # ── Baca axis dari config ──
             # Note: Pygame Joystick Y-axis is negative (-1.0) when pushed UP.
             # ArduSub X-axis (Maju) is positive (1000) for forward.
@@ -221,8 +235,6 @@ class JoystickWorker(QObject):
                 elif hat[1] < 0:
                     z = int(500 - (350 * self._pilot_gain))
 
-            current_buttons = [self._joystick.get_button(i) for i in range(num_buttons)]
-
             # ── Support D-Pad (Hat) as virtual buttons 100-103 ──
             hat_buttons = {100: False, 101: False, 102: False, 103: False}
             if num_hats > 0:
@@ -240,8 +252,8 @@ class JoystickWorker(QObject):
             num_buttons = len(current_buttons)
 
             # ── Tombol depth override ──
-            bi_up   = self._btn_idx("depth_up")
-            bi_down = self._btn_idx("depth_down")
+            bi_up   = self._btn_idx("depth_up", is_shifted)
+            bi_down = self._btn_idx("depth_down", is_shifted)
             if 0 <= bi_up < num_buttons and current_buttons[bi_up]:
                 z = max(z, int(500 + (300 * self._pilot_gain)))
             if 0 <= bi_down < num_buttons and current_buttons[bi_down]:
@@ -253,20 +265,6 @@ class JoystickWorker(QObject):
             z = max(0,    min(1000, z))
             r = max(-1000, min(1000, r))
 
-            # MS5803 Custom Depth Target Adjustment (L2 = btn 6, R2 = btn 7 as per standard, or triggers)
-            # We increment/decrement slightly if the button is held
-            target_changed = False
-            if 6 < num_buttons and current_buttons[6]: # L2 (Decrease Depth / Go Up)
-                self._target_depth -= 0.05
-                target_changed = True
-            if 7 < num_buttons and current_buttons[7]: # R2 (Increase Depth / Dive)
-                self._target_depth += 0.05
-                target_changed = True
-
-            if target_changed:
-                self._target_depth = max(0.0, self._target_depth)
-                self.sig_depth_target_changed.emit(self._target_depth)
-
             # Bitmask
             buttons_mask = 0
             for idx, s in enumerate(current_buttons):
@@ -277,7 +275,7 @@ class JoystickWorker(QObject):
             if len(self._prev_buttons) == num_buttons:
                 for idx in range(num_buttons):
                     if current_buttons[idx] and not self._prev_buttons[idx]:
-                        self._handle_button_press(idx)
+                        self._handle_button_press(idx, is_shifted)
 
             # ── Servo logic ──
             if self.servo_config and len(self._prev_buttons) == num_buttons:
@@ -358,9 +356,11 @@ class JoystickWorker(QObject):
         except Exception:
             pass
 
-    def _handle_button_press(self, idx: int):
+    def _handle_button_press(self, idx: int, is_shifted: bool):
         """Tangani single-press event berdasarkan config buttons."""
-        for func_key, btn_idx in self._buttons_map.items():
+        active_map = self._shift_buttons_map if is_shifted else self._buttons_map
+        
+        for func_key, btn_idx in active_map.items():
             if btn_idx == idx:
                 if func_key == "arm":
                     self.sig_arm_toggled.emit()
@@ -376,4 +376,10 @@ class JoystickWorker(QObject):
                 elif func_key == "lights_toggle":
                     # Emit a signal that will toggle lights (we need to define this signal)
                     self.sig_light_toggled.emit()
+                elif func_key == "depth_target_up":
+                    self._target_depth = max(0.0, self._target_depth - 0.10)
+                    self.sig_depth_target_changed.emit(self._target_depth)
+                elif func_key == "depth_target_down":
+                    self._target_depth += 0.10
+                    self.sig_depth_target_changed.emit(self._target_depth)
 

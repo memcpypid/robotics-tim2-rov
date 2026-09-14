@@ -44,8 +44,10 @@ BUTTON_FUNCTIONS = [
     ("none",           "— Tidak Dipakai —"),
     ("arm",            "🔑 ARM ROV"),
     ("disarm",         "🛑 DISARM ROV"),
-    ("depth_up",       "⬆ Naik Cepat"),
-    ("depth_down",     "⬇ Turun Cepat"),
+    ("depth_up",       "⬆ Naik Cepat (Override)"),
+    ("depth_down",     "⬇ Turun Cepat (Override)"),
+    ("depth_target_up",  "🎯 Target Depth -10 cm (Naik)"),
+    ("depth_target_down","🎯 Target Depth +10 cm (Turun)"),
     ("mode_manual",    "🕹️ Mode: MANUAL"),
     ("mode_stabilize", "📐 Mode: STABILIZE"),
     ("mode_depth_hold","📏 Mode: DEPTH HOLD"),
@@ -53,7 +55,6 @@ BUTTON_FUNCTIONS = [
     ("auto_toggle",    "🤖 Mode: AUTONOMOUS TOGGLE"),
     ("lights_toggle",  "💡 Lampu Toggle"),
 ]
-
 
 XBOX_NAMES = {
     0:"A", 1:"B", 2:"X", 3:"Y",
@@ -301,11 +302,29 @@ class JoystickMapperPanel(QWidget):
         self.editor_layout.addWidget(self.grp_axes)
 
         # Button Mapping Group
-        self.grp_buttons = QGroupBox("🎮  PEMETAAN TOMBOL")
+        self.grp_buttons = QGroupBox("🎮  PEMETAAN TOMBOL & SHIFT")
         self.grp_buttons.setStyleSheet(self._group_style("#1e3050"))
-        self.buttons_grid = QGridLayout(self.grp_buttons)
+        btn_layout = QVBoxLayout(self.grp_buttons)
+        btn_layout.setSpacing(6)
+        
+        # Shift Selector
+        shift_lay = QHBoxLayout()
+        lbl_shift = QLabel("Tombol Shift (Modifier):")
+        lbl_shift.setStyleSheet("color:#81d4fa; font-weight:bold; font-size:11px;")
+        self.cb_shift = QComboBox()
+        self.cb_shift.setStyleSheet(self._combo_style())
+        self.cb_shift.addItem("— Tidak Ada —", "none")
+        # Akan diisi secara dinamis saat joystick terdeteksi
+        shift_lay.addWidget(lbl_shift)
+        shift_lay.addWidget(self.cb_shift)
+        shift_lay.addStretch()
+        btn_layout.addLayout(shift_lay)
+
+        self.buttons_grid = QGridLayout()
         self.buttons_grid.setSpacing(6)
-        btn_headers = ["Tombol #", "Nama", "Fungsi"]
+        btn_layout.addLayout(self.buttons_grid)
+        
+        btn_headers = ["Tombol #", "Nama", "Fungsi Normal", "Fungsi (Shift+)"]
         for c, h in enumerate(btn_headers):
             lbl = QLabel(h)
             lbl.setStyleSheet("color:#7a8fa6; font-size:10px; font-weight:bold;")
@@ -538,7 +557,28 @@ class JoystickMapperPanel(QWidget):
 
         # --- Build button rows ---
         btn_cfg = self.config.get("buttons", {})
+        shift_cfg = self.config.get("shift_buttons", {})
+        shift_btn = self.config.get("shift_btn", -1)
+        shift_axis = self.config.get("shift_axis", -1)
+        
+        # Populate Shift Selector
+        self.cb_shift.clear()
+        self.cb_shift.addItem("— Tidak Ada —", "none")
+        for i in range(n_buttons):
+            name = XBOX_NAMES.get(i, str(i))
+            self.cb_shift.addItem(f"Tombol #{i} ({name})", f"btn_{i}")
+        for i in range(n_axes):
+            self.cb_shift.addItem(f"Axis #{i} (> 80%)", f"axis_{i}")
+            
+        if shift_btn >= 0:
+            idx = self.cb_shift.findData(f"btn_{shift_btn}")
+            if idx >= 0: self.cb_shift.setCurrentIndex(idx)
+        elif shift_axis >= 0:
+            idx = self.cb_shift.findData(f"axis_{shift_axis}")
+            if idx >= 0: self.cb_shift.setCurrentIndex(idx)
+
         func_to_btn = {v: k for k, v in btn_cfg.items() if isinstance(v, int) and v >= 0}
+        func_to_sbtn = {v: k for k, v in shift_cfg.items() if isinstance(v, int) and v >= 0}
 
         for i in range(n_buttons):
             row = i + 1
@@ -550,6 +590,7 @@ class JoystickMapperPanel(QWidget):
             lbl_state.setStyleSheet("color:#445566; font-size:10px;")
             self.buttons_grid.addWidget(lbl_state, row, 1)
 
+            # Normal Function
             cb_func = QComboBox()
             cb_func.wheelEvent = lambda event: event.ignore()
             cb_func.setStyleSheet(self._combo_style())
@@ -561,9 +602,22 @@ class JoystickMapperPanel(QWidget):
                     cb_func.setCurrentIndex(j)
                     break
             self.buttons_grid.addWidget(cb_func, row, 2)
+            
+            # Shift Function
+            cb_func_shift = QComboBox()
+            cb_func_shift.wheelEvent = lambda event: event.ignore()
+            cb_func_shift.setStyleSheet(self._combo_style())
+            for val, label in BUTTON_FUNCTIONS:
+                cb_func_shift.addItem(label, val)
+            current_func_shift = func_to_sbtn.get(i, "none")
+            for j in range(cb_func_shift.count()):
+                if cb_func_shift.itemData(j) == current_func_shift:
+                    cb_func_shift.setCurrentIndex(j)
+                    break
+            self.buttons_grid.addWidget(cb_func_shift, row, 3)
 
             self._button_row_widgets.append({
-                "btn_idx": i, "lbl_state": lbl_state, "cb_func": cb_func
+                "btn_idx": i, "lbl_state": lbl_state, "cb_func": cb_func, "cb_func_shift": cb_func_shift
             })
 
     def _combo_style(self) -> str:
@@ -589,20 +643,41 @@ class JoystickMapperPanel(QWidget):
             new_axes[func] = {"axis": i, "invert": invert, "deadzone": dz, "scale": scale}
 
         new_buttons: Dict[str, int] = {}
+        new_shift_buttons: Dict[str, int] = {}
         # Init semua fungsi ke -1
         for val, _ in BUTTON_FUNCTIONS:
             if val != "none":
                 new_buttons[val] = -1
+                new_shift_buttons[val] = -1
+                
         # Override dengan pilihan user
         for row_data in self._button_row_widgets:
             i = row_data["btn_idx"]
+            
+            # Normal func
             func = row_data["cb_func"].currentData()
             if func != "none":
                 new_buttons[func] = i
+                
+            # Shift func
+            func_shift = row_data["cb_func_shift"].currentData()
+            if func_shift != "none":
+                new_shift_buttons[func_shift] = i
 
         self.config["axes"] = new_axes
         self.config["buttons"] = new_buttons
+        self.config["shift_buttons"] = new_shift_buttons
         self.config["hat_depth"] = self.chk_hat.isChecked()
+        
+        # Simpan Shift Modifier
+        shift_data = self.cb_shift.currentData()
+        self.config["shift_btn"] = -1
+        self.config["shift_axis"] = -1
+        if shift_data and shift_data != "none":
+            if shift_data.startswith("btn_"):
+                self.config["shift_btn"] = int(shift_data.split("_")[1])
+            elif shift_data.startswith("axis_"):
+                self.config["shift_axis"] = int(shift_data.split("_")[1])
 
         self._save_config()
         self.sig_config_saved.emit(self.config)

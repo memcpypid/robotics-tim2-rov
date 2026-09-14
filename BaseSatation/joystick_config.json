@@ -4,19 +4,19 @@
             "axis": 0,
             "invert": false,
             "deadzone": 0.08,
-            "scale": 0.5
+            "scale": 0.7
         },
         "forward_x": {
             "axis": 1,
             "invert": false,
             "deadzone": 0.08,
-            "scale": 0.5
+            "scale": 0.7
         },
         "yaw_r": {
             "axis": 2,
             "invert": false,
             "deadzone": 0.08,
-            "scale": 0.5
+            "scale": 0.7
         },
         "depth_z": {
             "axis": 3,
@@ -26,16 +26,34 @@
         }
     },
     "buttons": {
-        "arm": 7,
-        "disarm": 6,
+        "arm": 6,
+        "disarm": 4,
         "depth_up": -1,
-        "depth_down": 4,
-        "mode_manual": -1,
-        "mode_stabilize": -1,
+        "depth_down": -1,
+        "depth_target_up": -1,
+        "depth_target_down": -1,
+        "mode_manual": 1,
+        "mode_stabilize": 3,
         "mode_depth_hold": -1,
         "enable_depth_hold": 0,
         "auto_toggle": -1,
         "lights_toggle": 5
     },
-    "hat_depth": false
+    "hat_depth": false,
+    "shift_buttons": {
+        "arm": -1,
+        "disarm": -1,
+        "depth_up": -1,
+        "depth_down": -1,
+        "depth_target_up": 0,
+        "depth_target_down": 2,
+        "mode_manual": -1,
+        "mode_stabilize": -1,
+        "mode_depth_hold": -1,
+        "enable_depth_hold": -1,
+        "auto_toggle": -1,
+        "lights_toggle": -1
+    },
+    "shift_btn": -1,
+    "shift_axis": 4
 }
