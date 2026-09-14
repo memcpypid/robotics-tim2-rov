@@ -30,7 +30,7 @@ class ROVMotionControl:
             try:
                 self.client.master.mav.manual_control_send(
                     self.client.master.target_system,
-                    self._last_x, self._last_y, self._last_z, self._last_r, self._last_buttons
+                    self._last_x, self._last_y, self._last_z, self._last_r, 0 # Set buttons ke 0 untuk mencegah konflik Pilot Gain ArduSub
                 )
                 return True
             except Exception as e:
