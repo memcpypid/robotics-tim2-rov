@@ -17,6 +17,7 @@ class ControlPanel(QWidget):
     sig_auto_mode_toggled = Signal(bool)     # True = Autonomous Mode, False = Manual
     sig_light_toggle_requested = Signal()    # Emit saat tombol toggle lampu diklik
     sig_shutdown_requested = Signal()        # Emit saat tombol shutdown diklik
+    sig_pilot_gain_changed = Signal(float)   # Emit saat mode kecepatan diubah
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -145,7 +146,24 @@ class ControlPanel(QWidget):
         self.lbl_joystick_axes.setStyleSheet("font-size: 11px; color: #00e5ff; font-family: Consolas, monospace;")
         joy_layout.addWidget(self.lbl_joystick_axes)
 
+        # Combo Box untuk Pilot Gain (Speed Mode)
+        gain_layout = QHBoxLayout()
+        self.lbl_gain = QLabel("Pilot Gain:")
+        self.lbl_gain.setStyleSheet("color: #00e5ff; font-weight: bold; font-size: 11px;")
+        self.cb_gain = QComboBox()
+        self.cb_gain.setStyleSheet("background-color: #1a2736; color: #00e5ff; border: 1px solid #00e5ff; padding: 4px;")
+        self.cb_gain.addItems(["25% (Sangat Pelan)", "50% (Pelan)", "75% (Normal)", "100% (Cepat)"])
+        self.cb_gain.setCurrentIndex(3) # Default 100%
+        self.cb_gain.currentIndexChanged.connect(self._on_gain_changed)
+        gain_layout.addWidget(self.lbl_gain)
+        gain_layout.addWidget(self.cb_gain)
+        joy_layout.addLayout(gain_layout)
+
         main_layout.addWidget(joy_group)
+
+    def _on_gain_changed(self, index):
+        gains = [0.25, 0.50, 0.75, 1.0]
+        self.sig_pilot_gain_changed.emit(gains[index])
 
     def _on_light_toggled(self):
         self._light_is_on = not self._light_is_on

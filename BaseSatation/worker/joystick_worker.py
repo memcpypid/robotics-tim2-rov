@@ -57,6 +57,7 @@ class JoystickWorker(QObject):
         self._latest_state = None
         
         self._target_depth = 0.0
+        self._pilot_gain = 1.0
 
         self.reload_joystick_config()
         self.reload_servo_config()
@@ -136,6 +137,10 @@ class JoystickWorker(QObject):
         else:
             self.sig_log.emit("[Joystick] Kendali manual diaktifkan.", "INFO")
 
+    def set_pilot_gain(self, gain: float):
+        self._pilot_gain = gain
+        self.sig_log.emit(f"[Joystick] Pilot Gain diubah menjadi {int(gain*100)}%", "INFO")
+
     # ──────────────────────────────────────────
     # Helpers
     # ──────────────────────────────────────────
@@ -198,23 +203,23 @@ class JoystickWorker(QObject):
             # Note: Pygame Joystick Y-axis is negative (-1.0) when pushed UP.
             # ArduSub X-axis (Maju) is positive (1000) for forward.
             # Oleh karena itu, forward_x dikalikan -1000 agar saat didorong ke depan (UP) ROV maju.
-            x = int(-self._get_axis("forward_x", num_axes) * 1000)
-            y = int(self._get_axis("strafe_y",  num_axes) * 1000)
-            r = int(self._get_axis("yaw_r",     num_axes) * 1000)
+            x = int(-self._get_axis("forward_x", num_axes) * 1000 * self._pilot_gain)
+            y = int(self._get_axis("strafe_y",  num_axes) * 1000 * self._pilot_gain)
+            r = int(self._get_axis("yaw_r",     num_axes) * 1000 * self._pilot_gain)
             
             # z_raw: Up = -1.0, Down = 1.0
             # ArduSub Z-axis: 0 = Naik (Ascend), 1000 = Turun (Descend).
             # Saat stick ke atas (-1.0), kita mau z = 0. Saat ke bawah (1.0), z = 1000.
             z_raw = self._get_axis("depth_z", num_axes)
-            z = int(z_raw * 500 + 500)
+            z = int((z_raw * 500 * self._pilot_gain) + 500)
 
             # ── D-Pad untuk depth ──
             if self._hat_depth and num_hats > 0:
                 hat = self._joystick.get_hat(0)
                 if hat[1] > 0:
-                    z = 850
+                    z = int(500 + (350 * self._pilot_gain))
                 elif hat[1] < 0:
-                    z = 150
+                    z = int(500 - (350 * self._pilot_gain))
 
             current_buttons = [self._joystick.get_button(i) for i in range(num_buttons)]
 
@@ -238,9 +243,9 @@ class JoystickWorker(QObject):
             bi_up   = self._btn_idx("depth_up")
             bi_down = self._btn_idx("depth_down")
             if 0 <= bi_up < num_buttons and current_buttons[bi_up]:
-                z = max(z, 800)
+                z = max(z, int(500 + (300 * self._pilot_gain)))
             if 0 <= bi_down < num_buttons and current_buttons[bi_down]:
-                z = min(z, 200)
+                z = min(z, int(500 - (300 * self._pilot_gain)))
 
             # Clamp
             x = max(-1000, min(1000, x))

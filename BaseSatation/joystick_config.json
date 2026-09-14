@@ -4,19 +4,19 @@
             "axis": 0,
             "invert": false,
             "deadzone": 0.08,
-            "scale": 0.7
+            "scale": 0.5
         },
         "forward_x": {
             "axis": 1,
             "invert": false,
             "deadzone": 0.08,
-            "scale": 0.7
+            "scale": 0.5
         },
         "yaw_r": {
             "axis": 2,
             "invert": false,
             "deadzone": 0.08,
-            "scale": 0.7
+            "scale": 0.5
         },
         "depth_z": {
             "axis": 3,

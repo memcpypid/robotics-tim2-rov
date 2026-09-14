@@ -235,6 +235,7 @@ class MainWindow(QMainWindow):
         self.joystick_mapper.sig_config_saved.connect(self.joystick_worker.reload_joystick_config)
         self.joystick_worker.sig_mode_changed.connect(self.worker.set_mode)
         self.control_panel.sig_joystick_enable_toggled.connect(self.joystick_worker.set_enabled)
+        self.control_panel.sig_pilot_gain_changed.connect(self.joystick_worker.set_pilot_gain)
         self.worker.sig_state_updated.connect(self.joystick_worker.on_state_updated)
 
         # Connect Depth Hold signals
