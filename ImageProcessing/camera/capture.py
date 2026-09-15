@@ -191,16 +191,16 @@ class CameraThread:
                 with self._lock:
                     self._frame = frame
             else:
-                # Proteksi timeout: Jika tidak ada frame valid masuk selama > 3 detik
-                if time.time() - last_valid_time > 3.0:
-                    print(f"[{self.cam_name} WARNING] Capture timeout (>3s). Attempting auto-reconnect...")
+                # Proteksi timeout: Jika tidak ada frame valid masuk selama > 0.5 detik
+                if time.time() - last_valid_time > 0.5:
+                    print(f"[{self.cam_name} WARNING] Capture timeout (>0.5s). Attempting auto-reconnect...")
                     if self.cap:
                         self.cap.release()
                     self.cap = None
                     self.is_connected = False
                     
                     # Wait slightly before reconnect
-                    time.sleep(1.5)
+                    time.sleep(0.5)
                     
                     import sys
                     source_val = int(self.config.device) if isinstance(self.config.device, str) and self.config.device.isdigit() else self.config.device
@@ -208,8 +208,9 @@ class CameraThread:
                     
                     indices_to_try = [source_val]
                     if isinstance(source_val, int):
-                        # Coba angka aslinya, lalu angka berikutnya jika bergeser
-                        indices_to_try = list(dict.fromkeys([source_val, source_val+1, source_val+2, 0, 1, 2]))
+                        # Coba angka aslinya, lalu dibatasi maksimum sampai indeks 5
+                        possible_indices = [source_val, source_val+1, 0, 1, 2, 3, 4, 5]
+                        indices_to_try = list(dict.fromkeys([i for i in possible_indices if i <= 5]))
                         
                     for idx in indices_to_try:
                         print(f"[{self.cam_name}] Trying index {idx}...")
@@ -219,7 +220,7 @@ class CameraThread:
                                 temp_cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.width)
                                 temp_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.height)
                                 temp_cap.set(cv2.CAP_PROP_FPS, self.config.fps)
-                                time.sleep(0.5) # Warmup
+                                time.sleep(0.2) # Warmup
                                 t_ret, t_frame = temp_cap.read()
                                 if t_ret and t_frame is not None:
                                     print(f"[{self.cam_name} SUCCESS] Reconnected to index {idx}!")
