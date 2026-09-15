@@ -46,23 +46,63 @@ class QRCodeProcessor:
         if not detected_text and PYZBAR_AVAILABLE:
             try:
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                barcodes = pyzbar.decode(gray)
-                for barcode in barcodes:
-                    decoded = barcode.data.decode("utf-8").strip()
-                    if decoded:
-                        detected_text = decoded
-                        polygon = barcode.polygon
-                        if len(polygon) == 4:
-                            points = np.array([[pt.x, pt.y] for pt in polygon], dtype=int)
-                        else:
-                            rect = barcode.rect
-                            points = np.array([
-                                [rect.left, rect.top],
-                                [rect.left + rect.width, rect.top],
-                                [rect.left + rect.width, rect.top + rect.height],
-                                [rect.left, rect.top + rect.height]
-                            ], dtype=int)
-                        break
+                
+                # Ambil frame counter (untuk bergantian variasi sudut tiap frame agar FPS tidak turun drastis)
+                self.frame_counter = getattr(self, 'frame_counter', 0) + 1
+                
+                # Selalu cek frame normal grayscale dan CLAHE (meratakan pencahayaan jika silau/gelap)
+                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+                variations = [
+                    (gray, 0),
+                    (clahe.apply(gray), 0)
+                ]
+                
+                # Secara bergantian (round-robin) cek sudut miring (Tilted/Skewed) dan Threshold
+                cycle = self.frame_counter % 5
+                image_center = tuple(np.array(gray.shape[1::-1]) / 2)
+                
+                if cycle == 1:
+                    _, thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
+                    variations.append((thresh, 0))
+                elif cycle == 2:
+                    variations.append((cv2.warpAffine(gray, cv2.getRotationMatrix2D(image_center, 25, 1.0), gray.shape[1::-1]), 25))
+                elif cycle == 3:
+                    variations.append((cv2.warpAffine(gray, cv2.getRotationMatrix2D(image_center, -25, 1.0), gray.shape[1::-1]), -25))
+                elif cycle == 4:
+                    variations.append((cv2.warpAffine(gray, cv2.getRotationMatrix2D(image_center, 45, 1.0), gray.shape[1::-1]), 45))
+                elif cycle == 0:
+                    variations.append((cv2.warpAffine(gray, cv2.getRotationMatrix2D(image_center, -45, 1.0), gray.shape[1::-1]), -45))
+
+                for var_frame, angle in variations:
+                    barcodes = pyzbar.decode(var_frame)
+                    if barcodes:
+                        for barcode in barcodes:
+                            decoded = barcode.data.decode("utf-8").strip()
+                            if decoded:
+                                detected_text = decoded
+                                polygon = barcode.polygon
+                                if len(polygon) == 4:
+                                    pts = np.array([[pt.x, pt.y] for pt in polygon], dtype=float)
+                                else:
+                                    rect = barcode.rect
+                                    pts = np.array([
+                                        [rect.left, rect.top],
+                                        [rect.left + rect.width, rect.top],
+                                        [rect.left + rect.width, rect.top + rect.height],
+                                        [rect.left, rect.top + rect.height]
+                                    ], dtype=float)
+                                
+                                # Kembalikan koordinat bounding box ke posisi frame asli jika frame sempat dirotasi
+                                if angle != 0:
+                                    inv_rot_mat = cv2.getRotationMatrix2D(image_center, -angle, 1.0)
+                                    pts = np.array([pts])
+                                    transformed_pts = cv2.transform(pts, inv_rot_mat)[0]
+                                    points = transformed_pts.astype(int)
+                                else:
+                                    points = pts.astype(int)
+                                break
+                        if detected_text:
+                            break
             except Exception:
                 pass
 
