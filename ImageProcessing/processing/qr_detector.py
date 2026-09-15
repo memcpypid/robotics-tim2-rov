@@ -47,92 +47,89 @@ class QRCodeProcessor:
             try:
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 
-                # Ambil frame counter (untuk bergantian variasi sudut tiap frame agar FPS tidak turun drastis)
-                self.frame_counter = getattr(self, 'frame_counter', 0) + 1
+                # Untuk menghindari frame rate drop (lag) yang menyebabkan motion blur, 
+                # kita hanya mengeksekusi PyZbar 1 KALI per frame.
+                if not hasattr(self, 'frame_counter'):
+                    self.frame_counter = 0
+                    self.last_cycle = 0
                 
-                # Selalu cek frame normal grayscale dan CLAHE (meratakan pencahayaan jika silau/gelap)
-                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-                variations = [
-                    (gray, 0),
-                    (clahe.apply(gray), 0)
-                ]
-                
-                # Secara bergantian (round-robin) cek sudut miring (Tilted) dan perspektif curam
-                cycle = self.frame_counter % 8
-                image_center = tuple(np.array(gray.shape[1::-1]) / 2)
+                cycle = self.last_cycle
                 H, W = gray.shape
-                
-                if cycle == 1:
-                    _, thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
-                    variations.append((thresh, None))
+                image_center = (W / 2.0, H / 2.0)
+                var_frame = gray
+                inv_m = None
+
+                if cycle == 0:
+                    pass # Normal
+                elif cycle == 1:
+                    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+                    var_frame = clahe.apply(gray)
                 elif cycle == 2:
+                    _, var_frame = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
+                elif cycle == 3:
                     m = cv2.getRotationMatrix2D(image_center, 25, 1.0)
                     inv_m = cv2.getRotationMatrix2D(image_center, -25, 1.0)
-                    variations.append((cv2.warpAffine(gray, m, (W, H)), inv_m))
-                elif cycle == 3:
+                    var_frame = cv2.warpAffine(gray, m, (W, H))
+                elif cycle == 4:
                     m = cv2.getRotationMatrix2D(image_center, -25, 1.0)
                     inv_m = cv2.getRotationMatrix2D(image_center, 25, 1.0)
-                    variations.append((cv2.warpAffine(gray, m, (W, H)), inv_m))
-                elif cycle == 4:
-                    # Perspektif 1: Kemiringan sedang ke lantai (Bird's eye view ringan)
-                    src1 = np.float32([[W*0.15, H*0.1], [W*0.85, H*0.1], [W, H], [0, H]])
-                    dst1 = np.float32([[0, 0], [W, 0], [W, H], [0, H]])
-                    m = cv2.getPerspectiveTransform(src1, dst1)
-                    inv_m = cv2.getPerspectiveTransform(dst1, src1)
-                    variations.append((cv2.warpPerspective(gray, m, (W, H)), inv_m))
+                    var_frame = cv2.warpAffine(gray, m, (W, H))
                 elif cycle == 5:
-                    # Perspektif 2: Sangat curam (Cocok untuk QR di lantai persis di depan ROV)
-                    src2 = np.float32([[W*0.3, H*0.2], [W*0.7, H*0.2], [W, H], [0, H]])
-                    dst2 = np.float32([[0, 0], [W, 0], [W, H], [0, H]])
-                    m = cv2.getPerspectiveTransform(src2, dst2)
-                    inv_m = cv2.getPerspectiveTransform(dst2, src2)
-                    variations.append((cv2.warpPerspective(gray, m, (W, H)), inv_m))
+                    # Perspektif 1: Kemiringan sedang
+                    src = np.float32([[W*0.2, H*0.1], [W*0.8, H*0.1], [W, H], [0, H]])
+                    dst = np.float32([[0, 0], [W, 0], [W, H], [0, H]])
+                    m = cv2.getPerspectiveTransform(src, dst)
+                    inv_m = cv2.getPerspectiveTransform(dst, src)
+                    var_frame = cv2.warpPerspective(gray, m, (W, H))
                 elif cycle == 6:
-                    # Perspektif 3: Lebih lebar di tengah (Lensa wide/fisheye distorsi kemiringan)
-                    src3 = np.float32([[W*0.2, H*0.3], [W*0.8, H*0.3], [W, H], [0, H]])
-                    dst3 = np.float32([[0, 0], [W, 0], [W, H], [0, H]])
-                    m = cv2.getPerspectiveTransform(src3, dst3)
-                    inv_m = cv2.getPerspectiveTransform(dst3, src3)
-                    variations.append((cv2.warpPerspective(gray, m, (W, H)), inv_m))
-                elif cycle == 7 or cycle == 0:
-                    m = cv2.getRotationMatrix2D(image_center, 45, 1.0)
-                    inv_m = cv2.getRotationMatrix2D(image_center, -45, 1.0)
-                    variations.append((cv2.warpAffine(gray, m, (W, H)), inv_m))
+                    # Perspektif 2: Sangat curam (Seperti foto contoh_QR)
+                    src = np.float32([[W*0.35, H*0.2], [W*0.65, H*0.2], [W, H], [0, H]])
+                    dst = np.float32([[0, 0], [W, 0], [W, H], [0, H]])
+                    m = cv2.getPerspectiveTransform(src, dst)
+                    inv_m = cv2.getPerspectiveTransform(dst, src)
+                    var_frame = cv2.warpPerspective(gray, m, (W, H))
+                elif cycle == 7:
+                    # Zoom 1.5x untuk membaca QR yang ukurannya kecil/jauh di lantai
+                    m = cv2.getRotationMatrix2D(image_center, 0, 1.5)
+                    inv_m = cv2.getRotationMatrix2D(image_center, 0, 1/1.5)
+                    var_frame = cv2.warpAffine(gray, m, (W, H))
 
-                for var_frame, inv_m in variations:
-                    barcodes = pyzbar.decode(var_frame)
-                    if barcodes:
-                        for barcode in barcodes:
-                            decoded = barcode.data.decode("utf-8").strip()
-                            if decoded:
-                                detected_text = decoded
-                                polygon = barcode.polygon
-                                if len(polygon) == 4:
-                                    pts = np.array([[pt.x, pt.y] for pt in polygon], dtype=float)
+                barcodes = pyzbar.decode(var_frame)
+                
+                if barcodes:
+                    # KUNCI cycle ini jika berhasil, agar di frame berikutnya langsung pakai setting ini
+                    self.last_cycle = cycle
+                    for barcode in barcodes:
+                        decoded = barcode.data.decode("utf-8").strip()
+                        if decoded:
+                            detected_text = decoded
+                            polygon = barcode.polygon
+                            if len(polygon) == 4:
+                                pts = np.array([[pt.x, pt.y] for pt in polygon], dtype=float)
+                            else:
+                                rect = barcode.rect
+                                pts = np.array([
+                                    [rect.left, rect.top],
+                                    [rect.left + rect.width, rect.top],
+                                    [rect.left + rect.width, rect.top + rect.height],
+                                    [rect.left, rect.top + rect.height]
+                                ], dtype=float)
+                            
+                            # Kembalikan koordinat bounding box ke posisi frame asli
+                            if inv_m is not None:
+                                pts = np.array([pts])
+                                if inv_m.shape == (3, 3):
+                                    transformed_pts = cv2.perspectiveTransform(pts, inv_m)[0]
                                 else:
-                                    rect = barcode.rect
-                                    pts = np.array([
-                                        [rect.left, rect.top],
-                                        [rect.left + rect.width, rect.top],
-                                        [rect.left + rect.width, rect.top + rect.height],
-                                        [rect.left, rect.top + rect.height]
-                                    ], dtype=float)
-                                
-                                # Kembalikan koordinat bounding box ke posisi frame asli
-                                if inv_m is not None:
-                                    pts = np.array([pts])
-                                    if inv_m.shape == (3, 3):
-                                        # Transformasi balik dari perspektif (3x3)
-                                        transformed_pts = cv2.perspectiveTransform(pts, inv_m)[0]
-                                    else:
-                                        # Transformasi balik dari affine/rotasi (2x3)
-                                        transformed_pts = cv2.transform(pts, inv_m)[0]
-                                    points = transformed_pts.astype(int)
-                                else:
-                                    points = pts.astype(int)
-                                break
-                        if detected_text:
+                                    transformed_pts = cv2.transform(pts, inv_m)[0]
+                                points = transformed_pts.astype(int)
+                            else:
+                                points = pts.astype(int)
                             break
+                else:
+                    # Jika gagal, ganti ke variasi berikutnya untuk frame selanjutnya
+                    self.frame_counter += 1
+                    self.last_cycle = self.frame_counter % 8
             except Exception:
                 pass
 
