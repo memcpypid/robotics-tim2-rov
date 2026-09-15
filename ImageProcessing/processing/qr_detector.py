@@ -57,23 +57,49 @@ class QRCodeProcessor:
                     (clahe.apply(gray), 0)
                 ]
                 
-                # Secara bergantian (round-robin) cek sudut miring (Tilted/Skewed) dan Threshold
-                cycle = self.frame_counter % 5
+                # Secara bergantian (round-robin) cek sudut miring (Tilted) dan perspektif curam
+                cycle = self.frame_counter % 8
                 image_center = tuple(np.array(gray.shape[1::-1]) / 2)
+                H, W = gray.shape
                 
                 if cycle == 1:
                     _, thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
-                    variations.append((thresh, 0))
+                    variations.append((thresh, None))
                 elif cycle == 2:
-                    variations.append((cv2.warpAffine(gray, cv2.getRotationMatrix2D(image_center, 25, 1.0), gray.shape[1::-1]), 25))
+                    m = cv2.getRotationMatrix2D(image_center, 25, 1.0)
+                    inv_m = cv2.getRotationMatrix2D(image_center, -25, 1.0)
+                    variations.append((cv2.warpAffine(gray, m, (W, H)), inv_m))
                 elif cycle == 3:
-                    variations.append((cv2.warpAffine(gray, cv2.getRotationMatrix2D(image_center, -25, 1.0), gray.shape[1::-1]), -25))
+                    m = cv2.getRotationMatrix2D(image_center, -25, 1.0)
+                    inv_m = cv2.getRotationMatrix2D(image_center, 25, 1.0)
+                    variations.append((cv2.warpAffine(gray, m, (W, H)), inv_m))
                 elif cycle == 4:
-                    variations.append((cv2.warpAffine(gray, cv2.getRotationMatrix2D(image_center, 45, 1.0), gray.shape[1::-1]), 45))
-                elif cycle == 0:
-                    variations.append((cv2.warpAffine(gray, cv2.getRotationMatrix2D(image_center, -45, 1.0), gray.shape[1::-1]), -45))
+                    # Perspektif 1: Kemiringan sedang ke lantai (Bird's eye view ringan)
+                    src1 = np.float32([[W*0.15, H*0.1], [W*0.85, H*0.1], [W, H], [0, H]])
+                    dst1 = np.float32([[0, 0], [W, 0], [W, H], [0, H]])
+                    m = cv2.getPerspectiveTransform(src1, dst1)
+                    inv_m = cv2.getPerspectiveTransform(dst1, src1)
+                    variations.append((cv2.warpPerspective(gray, m, (W, H)), inv_m))
+                elif cycle == 5:
+                    # Perspektif 2: Sangat curam (Cocok untuk QR di lantai persis di depan ROV)
+                    src2 = np.float32([[W*0.3, H*0.2], [W*0.7, H*0.2], [W, H], [0, H]])
+                    dst2 = np.float32([[0, 0], [W, 0], [W, H], [0, H]])
+                    m = cv2.getPerspectiveTransform(src2, dst2)
+                    inv_m = cv2.getPerspectiveTransform(dst2, src2)
+                    variations.append((cv2.warpPerspective(gray, m, (W, H)), inv_m))
+                elif cycle == 6:
+                    # Perspektif 3: Lebih lebar di tengah (Lensa wide/fisheye distorsi kemiringan)
+                    src3 = np.float32([[W*0.2, H*0.3], [W*0.8, H*0.3], [W, H], [0, H]])
+                    dst3 = np.float32([[0, 0], [W, 0], [W, H], [0, H]])
+                    m = cv2.getPerspectiveTransform(src3, dst3)
+                    inv_m = cv2.getPerspectiveTransform(dst3, src3)
+                    variations.append((cv2.warpPerspective(gray, m, (W, H)), inv_m))
+                elif cycle == 7 or cycle == 0:
+                    m = cv2.getRotationMatrix2D(image_center, 45, 1.0)
+                    inv_m = cv2.getRotationMatrix2D(image_center, -45, 1.0)
+                    variations.append((cv2.warpAffine(gray, m, (W, H)), inv_m))
 
-                for var_frame, angle in variations:
+                for var_frame, inv_m in variations:
                     barcodes = pyzbar.decode(var_frame)
                     if barcodes:
                         for barcode in barcodes:
@@ -92,11 +118,15 @@ class QRCodeProcessor:
                                         [rect.left, rect.top + rect.height]
                                     ], dtype=float)
                                 
-                                # Kembalikan koordinat bounding box ke posisi frame asli jika frame sempat dirotasi
-                                if angle != 0:
-                                    inv_rot_mat = cv2.getRotationMatrix2D(image_center, -angle, 1.0)
+                                # Kembalikan koordinat bounding box ke posisi frame asli
+                                if inv_m is not None:
                                     pts = np.array([pts])
-                                    transformed_pts = cv2.transform(pts, inv_rot_mat)[0]
+                                    if inv_m.shape == (3, 3):
+                                        # Transformasi balik dari perspektif (3x3)
+                                        transformed_pts = cv2.perspectiveTransform(pts, inv_m)[0]
+                                    else:
+                                        # Transformasi balik dari affine/rotasi (2x3)
+                                        transformed_pts = cv2.transform(pts, inv_m)[0]
                                     points = transformed_pts.astype(int)
                                 else:
                                     points = pts.astype(int)
