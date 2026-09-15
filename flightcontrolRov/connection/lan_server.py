@@ -182,38 +182,20 @@ class ROVLANServer:
                             time.sleep(0.1)
                         return True
                         
-                    def angle_diff(target, current):
-                        return (target - current + 180) % 360 - 180
-
-                    # 1. Geser Kanan (y=1000) selama 2 detik
-                    print("[AUTO] Stage 1: Geser Kanan (2 detik)")
-                    if not run_stage(x=0, y=1000, z=500, r=0, duration=2.0): return
+                    # 1. Berjalan ke kanan selama 5 detik
+                    print("[AUTO] Stage 1: Geser Kanan (5 detik)")
+                    if not run_stage(x=0, y=1000, z=500, r=0, duration=3.0): return
                     
-                    # 2. Putar Kiri 90 derajat
-                    print("[AUTO] Stage 2: Putar Kiri 90 derajat")
-                    start_yaw = self.rov.get_state().yaw
-                    target_yaw = (start_yaw - 90.0) % 360.0
-                    timeout = time.time() + 6.0  # Max 6 detik untuk mencegah stuck
-                    while time.time() < timeout:
-                        if getattr(self, 'abort_auto', False):
-                            self.rov.stop()
-                            return
-                        curr_yaw = self.rov.get_state().yaw
-                        if abs(angle_diff(target_yaw, curr_yaw)) < 5.0:  # Toleransi 5 derajat
-                            break
-                        self.rov.move(x=0, y=0, z=500, r=-800, buttons=0)
-                        time.sleep(0.1)
-                        
-                    # 3. Tenggelam full 10 detik (z=1000)
-                    print("[AUTO] Stage 3: Menyelam (10 detik)")
-                    if not run_stage(x=0, y=0, z=1000, r=0, duration=10.0): return
+                    # 2. Berhenti dan tenggelam penuh selama 5 detik
+                    print("[AUTO] Stage 2: Berhenti & Tenggelam Penuh (5 detik)")
+                    if not run_stage(x=0, y=0, z=0, r=0, duration=5.0): return
                     
-                    # 4. Naik full 10 detik (z=0)
-                    print("[AUTO] Stage 4: Naik (10 detik)")
-                    if not run_stage(x=0, y=0, z=0, r=0, duration=10.0): return
+                    # 3. Kembali ke permukaan
+                    print("[AUTO] Stage 3: Naik ke Permukaan (5 detik)")
+                    if not run_stage(x=0, y=0, z=1000, r=0, duration=5.0): return
                     
-                    # 5. Stop
-                    print("[AUTO] Misi Selesai!")
+                    # 4. Matikan motor
+                    print("[AUTO] Misi Selesai! Menghentikan motor.")
                     self.rov.stop()
 
                 import threading
